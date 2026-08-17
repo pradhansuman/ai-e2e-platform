@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from .engine import BenchResult
+from .quality import compute_ai_qe_score, DIMENSION_LABELS, WEIGHTS
 
 
 _METRIC_LABELS = {
     "requirement_coverage_pct": "Requirement coverage",
     "test_generation_accuracy_pct": "Test-generation accuracy",
+    "defect_detection_pct": "Defect detection (mutation score)",
     "root_cause_accuracy_pct": "Root-cause accuracy",
     "self_healing_success_pct": "Self-healing success",
     "false_healing_rate_pct": "False-healing rate",
@@ -18,6 +20,7 @@ _METRIC_LABELS = {
 _UNITS = {
     "requirement_coverage_pct": "%",
     "test_generation_accuracy_pct": "%",
+    "defect_detection_pct": "%",
     "root_cause_accuracy_pct": "%",
     "self_healing_success_pct": "%",
     "false_healing_rate_pct": "%",
@@ -33,6 +36,8 @@ def render_text(result: BenchResult) -> str:
     for key, label in _METRIC_LABELS.items():
         unit = _UNITS[key]
         lines.append(f"{label:<26} {result.metrics[key]}{unit}")
+    score, _dims = compute_ai_qe_score(result.metrics)
+    lines.append(f"{'AI-QE Score':<26} {score}/100")
     lines.append("")
     lines.append(f"apps={result.counts['apps']}  workflows={result.counts['workflows']}  "
                  f"tests={result.counts['tests']}  requirements={result.counts['requirements']}")
@@ -59,6 +64,18 @@ def render_markdown(result: BenchResult) -> str:
     for key, label in _METRIC_LABELS.items():
         unit = _UNITS[key]
         out.append(f"| {label} | {m[key]}{unit} |")
+    score, dims = compute_ai_qe_score(m)
+    out.append(f"| **AI-QE Score** | **{score}/100** |")
+    out.append("")
+    out.append("## AI-QE Score breakdown")
+    out.append("")
+    out.append("| Dimension | Weight | Score (0-1) | Weighted |")
+    out.append("|---|---|---|---|")
+    for key, weight in WEIGHTS.items():
+        out.append(
+            f"| {DIMENSION_LABELS[key]} | {weight:.0%} | "
+            f"{dims[key]:.3f} | {weight * dims[key]:.3f} |"
+        )
     out.append("")
     out.append("## Volume")
     out.append("")

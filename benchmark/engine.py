@@ -237,6 +237,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         "generated": 0, "accurate_tests": 0,
         "failures": 0, "deterministic_failures": 0,
         "root_cause_correct": 0,
+        "mutations_injected": 0, "mutations_detected": 0,
         "heal_attempts": 0, "heal_success": 0, "false_heals": 0,
         "flaky_injected": 0, "flaky_detected": 0,
         "interventions": 0,
@@ -294,6 +295,12 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                 rc = heuristic_classify(result, {"evidence": {}})  # REAL agent
                 if rc["classification"] == _ground_truth_label(mutation):
                     c["root_cause_correct"] += 1
+                # Mutation (fault-detection) score: did the platform both catch
+                # AND correctly identify an injected mutation?
+                if mutation in ("broken_locator", "real_defect", "requirement_change"):
+                    c["mutations_injected"] += 1
+                    if rc["classification"] == _ground_truth_label(mutation):
+                        c["mutations_detected"] += 1
 
                 # Self-healing for healable automation defects (REAL heuristic).
                 if rc["classification"] == "automation_defect" and mutation in (
@@ -332,6 +339,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
     req_cov = len(c["covered_requirements"]) / c["total_requirements"] * 100 if c["total_requirements"] else 0.0
     gen_acc = c["accurate_tests"] / total * 100 if total else 0.0
     rc_acc = c["root_cause_correct"] / c["deterministic_failures"] * 100 if c["deterministic_failures"] else 0.0
+    mutation_score = c["mutations_detected"] / c["mutations_injected"] * 100 if c["mutations_injected"] else 0.0
     heal_success = c["heal_success"] / c["heal_attempts"] * 100 if c["heal_attempts"] else 0.0
     false_heal = c["false_heals"] / c["heal_attempts"] * 100 if c["heal_attempts"] else 0.0
     flaky_acc = c["flaky_detected"] / c["flaky_injected"] * 100 if c["flaky_injected"] else 0.0
@@ -346,6 +354,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         "requirement_coverage_pct": round(req_cov, 1),
         "test_generation_accuracy_pct": round(gen_acc, 1),
         "root_cause_accuracy_pct": round(rc_acc, 1),
+        "defect_detection_pct": round(mutation_score, 1),
         "self_healing_success_pct": round(heal_success, 1),
         "false_healing_rate_pct": round(false_heal, 1),
         "flaky_detection_accuracy_pct": round(flaky_acc, 1),
@@ -365,6 +374,8 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
             "accurate_tests": c["accurate_tests"],
             "failures": c["failures"],
             "root_cause_correct": c["root_cause_correct"],
+            "mutations_injected": c["mutations_injected"],
+            "mutations_detected": c["mutations_detected"],
             "heal_attempts": c["heal_attempts"],
             "heal_success": c["heal_success"],
             "false_heals": c["false_heals"],

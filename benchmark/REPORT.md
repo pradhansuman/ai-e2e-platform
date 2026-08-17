@@ -8,6 +8,7 @@
 |---|---|
 | Requirement coverage | 83.3% |
 | Test-generation accuracy | 87.5% |
+| Defect detection (mutation score) | 90.6% |
 | Root-cause accuracy | 91.5% |
 | Self-healing success | 41.3% |
 | False-healing rate | 58.7% |
@@ -15,6 +16,21 @@
 | Human intervention | 20.4% |
 | Avg diagnosis time | 2.81 sec |
 | Cost per test | 0.0012$ |
+| **AI-QE Score** | **78.7/100** |
+
+## AI-QE Score breakdown
+
+| Dimension | Weight | Score (0-1) | Weighted |
+|---|---|---|---|
+| Defect Detection | 20% | 0.906 | 0.181 |
+| Requirement Coverage | 15% | 0.833 | 0.125 |
+| Root Cause Accuracy | 15% | 0.915 | 0.137 |
+| Test Quality | 15% | 0.875 | 0.131 |
+| Self-Healing | 10% | 0.413 | 0.041 |
+| Reliability | 10% | 0.413 | 0.041 |
+| Flaky Detection | 5% | 0.800 | 0.040 |
+| Human Intervention | 5% | 0.796 | 0.040 |
+| Cost Efficiency | 5% | 0.999 | 0.050 |
 
 ## Volume
 
