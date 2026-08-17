@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI E2E Platform — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚡ AI E2E Platform</div>
+    <div class="meta">
+      <span id="env-badge" class="badge">offline</span>
+      <button id="refresh-btn" class="btn btn-ghost">Refresh</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card" id="card-apps">
+      <h2>Applications</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="num" id="stat-apps">—</span><span class="label">Applications</span></div>
+        <div class="stat"><span class="num" id="stat-pages">—</span><span class="label">Pages discovered</span></div>
+        <div class="stat"><span class="num" id="stat-apis">—</span><span class="label">APIs discovered</span></div>
+        <div class="stat"><span class="num" id="stat-runs">—</span><span class="label">Runs</span></div>
+      </div>
+    </section>
+
+    <section class="card" id="card-tests">
+      <h2>Tests</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="num" id="stat-total">—</span><span class="label">Total</span></div>
+        <div class="stat pass"><span class="num" id="stat-passed">—</span><span class="label">Passed</span></div>
+        <div class="stat fail"><span class="num" id="stat-failed">—</span><span class="label">Failed</span></div>
+        <div class="stat flaky"><span class="num" id="stat-flaky">—</span><span class="label">Flaky</span></div>
+      </div>
+      <div class="bar">
+        <div class="bar-track"><div class="bar-fill" id="pass-rate-bar"></div></div>
+        <span class="bar-label" id="pass-rate-label">—</span>
+      </div>
+    </section>
+
+    <section class="card" id="card-ai">
+      <h2>AI</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="num" id="stat-healing">—</span><span class="label">Self-healing events</span></div>
+        <div class="stat"><span class="num" id="stat-confidence">—</span><span class="label">AI confidence</span></div>
+        <div class="stat"><span class="num" id="stat-halluc">—</span><span class="label">Hallucination rate</span></div>
+        <div class="stat"><span class="num" id="stat-eval">—</span><span class="label">Evaluation score</span></div>
+      </div>
+    </section>
+
+    <section class="card" id="card-execution">
+      <h2>Execution</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="num" id="stat-passrate">—</span><span class="label">Pass rate</span></div>
+        <div class="stat"><span class="num" id="stat-failrate">—</span><span class="label">Failure rate</span></div>
+        <div class="stat"><span class="num" id="stat-duration">—</span><span class="label">Avg duration</span></div>
+        <div class="stat"><span class="num" id="stat-browser">—</span><span class="label">Browsers</span></div>
+      </div>
+    </section>
+
+    <section class="card wide" id="card-failures">
+      <h2>Failure Intelligence</h2>
+      <div id="failure-list" class="list">
+        <p class="empty">No failures recorded yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="status-toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

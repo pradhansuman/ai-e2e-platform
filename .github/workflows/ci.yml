@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      - name: Compile check
+        run: cd backend && python -m compileall app
+      - name: Run unit tests
+        run: cd backend && pytest ../../tests -q
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    needs: lint-and-unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps + browser
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: AI test selection + E2E execution (smoke)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+        run: |
+          cd backend
+          python -m app.cli run --objective "smoke test" \
+            --url "$TEST_TARGET_URL" --priority P0 --limit 5
+        env:
+          TEST_TARGET_URL: ${{ secrets.TEST_TARGET_URL }}
+
+  langsmith-eval:
+    runs-on: ubuntu-latest
+    needs: e2e-smoke
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: cd backend && pip install -r requirements.txt
+      - name: Run LangSmith evaluation (quality gate)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+        run: |
+          cd backend
+          python -m app.evaluation.run_eval --datasets test-generation-accuracy,root-cause-accuracy
