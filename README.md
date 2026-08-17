@@ -127,11 +127,12 @@ ai-e2e-platform/
 │   │   ├── db.py                # async SQLAlchemy engine/session
 │   │   ├── security.py          # masking, RBAC, prompt-injection guard, audit
 │   │   ├── schemas.py           # Pydantic structured-output contracts
-│   │   ├── llm.py               # model factory + LangSmith bootstrap
+│   │   ├── llm.py               # model factory + LangSmith + multi-provider failover
 │   │   ├── cli.py               # `python -m app.cli run`
 │   │   ├── api/                 # FastAPI routes (runs, apps, dashboard)
-│   │   ├── agents/              # discovery, requirements, generator,
-│   │   │                        #   prioritizer, analyzer, healer, flakiness
+│   │   ├── agents/              # discovery, understanding, requirements,
+│   │   │                        #   generator, intelligence, prioritizer,
+│   │   │                        #   analyzer, healer, flakiness
 │   │   ├── graph/               # LangGraph state + nodes + workflow
 │   │   ├── executor/            # Playwright executor + allow-listed actions
 │   │   ├── models/              # SQLAlchemy ORM
@@ -155,8 +156,8 @@ ai-e2e-platform/
 - **Python 3.12+** (3.12–3.13 recommended; 3.14 is too new for some wheels)
 - Playwright browsers (installed in a step below)
 - Optional: Docker (for Postgres + the containerised stack)
-- An LLM API key (any of OpenAI / Anthropic / OpenRouter / Google Gemini —
-  free tiers work)
+- An LLM API key (any of OpenAI / Anthropic / OpenRouter / Google Gemini /
+  Groq — free tiers work)
 
 ## Installation
 
@@ -246,14 +247,17 @@ All settings are env-driven (`.env`, see `.env.example`). The important ones:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `auto` | `auto` / `openai` / `openrouter` / `anthropic` / `google` |
+| `LLM_PROVIDER` | `auto` | `auto` / `openai` / `openrouter` / `anthropic` / `google` / `groq` |
 | `LLM_MODEL` | `gpt-4o` | model used when provider is `openai` |
 | `OPENAI_API_KEY` | — | OpenAI key |
 | `ANTHROPIC_API_KEY` | — | Anthropic key |
 | `OPENROUTER_API_KEY` | — | OpenRouter key (free models available) |
-| `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it:free` | OpenRouter model |
+| `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it:free` | primary OpenRouter model |
+| `OPENROUTER_FALLBACK_MODELS` | `qwen/…,meta-llama/…` | extra OpenRouter `:free` models to fail over to |
 | `GEMINI_API_KEY` | — | Google Gemini key |
 | `GEMINI_MODEL` | `gemini-3.6-flash` | Gemini model |
+| `GROQ_API_KEY` | — | Groq key (fast free llama models) |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
 | `LANGSMITH_API_KEY` | — | LangSmith tracing (optional) |
 | `LANGSMITH_TRACING` | `true` | enable tracing |
 | `DATABASE_URL` | Postgres URL | dev tip: `sqlite+aiosqlite:///./e2e.db` |
@@ -345,6 +349,7 @@ alembic revision --autogenerate -m "message"   # create a new migration
 | To change… | Edit… |
 |---|---|
 | LLM model / temperature | `backend/app/config.py` or `.env` |
+| LLM failover providers | `backend/app/llm.py` (`get_llm_candidates`) + `.env` keys |
 | Prompt wording / behavior | `prompts/*.md` + the matching `ChatPromptTemplate` in `backend/app/agents/*.py` |
 | Allowed browser actions | `backend/app/executor/actions.py` |
 | Priority scoring weights | `backend/app/agents/prioritizer.py` |
@@ -358,7 +363,7 @@ alembic revision --autogenerate -m "message"   # create a new migration
 
 Verified end-to-end: discovery → generation → execution → failure
 classification → self-healing → re-execution (live against saucedemo.com,
-demoqa.com, and a local app; **49 unit tests passing**, CI green).
+demoqa.com, and a local app; **70 unit tests passing**, CI green).
 
 - A deliberately failing assertion was classified `product_defect`.
 - A broken locator was classified `automation_defect`, healed to a stable
