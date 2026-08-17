@@ -12,7 +12,8 @@ PYTHONPATH=backend .venv/bin/python -m benchmark --markdown   # publishable mark
 PYTHONPATH=backend .venv/bin/python -m benchmark --json       # machine-readable
 PYTHONPATH=backend .venv/bin/python -m benchmark --compare    # control group (Human/Playwright/LLM/platform)
 PYTHONPATH=backend .venv/bin/python -m benchmark --compare --markdown
-PYTHONPATH=backend .venv/bin/python -m benchmark --seed 7 --tests 600 --gen-accuracy 0.90
+PYTHONPATH=backend .venv/bin/python -m benchmark --sweep        # sensitivity sweep of the AI-QE score
+PYTHONPATH=backend .venv/bin/python -m benchmark --seed 7 --tests 600 --gen-accuracy 0.90 --assertion-quality 0.85 --heal heuristic
 ```
 
 ## What it measures
@@ -130,7 +131,8 @@ is the intended next step once an LLM key with quota is available.
 | `quality.py` | weighted AI-QE Score |
 | `approaches.py` | control-group baseline (Human / Playwright / LLM / platform) |
 | `report.py` | markdown + terminal rendering |
-| `__main__.py` | CLI (`--seed`, `--tests`, `--gen-accuracy`, `--json`, `--markdown`, `--compare`) |
+| `__main__.py` | CLI (`--seed`, `--tests`, `--gen-accuracy`, `--assertion-quality`, `--requirement-coverage`, `--heal`, `--json`, `--markdown`, `--compare`, `--sweep`) |
+| `sweep.py` | sensitivity sweep of the AI-QE score over generator priors |
 | `export_data.py` | dump ground truth to the canonical public layout (`data/*.json`) |
 | `data/` | exported ground truth: applications, requirements, workflows, defects, metrics |
 

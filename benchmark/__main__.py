@@ -27,6 +27,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--tests", type=int, default=510)
     parser.add_argument("--gen-accuracy", type=float, default=0.86)
+    parser.add_argument("--assertion-quality", type=float, default=0.80)
+    parser.add_argument("--requirement-coverage", type=float, default=0.88)
+    parser.add_argument("--heal", choices=["heuristic", "llm"], default="heuristic")
     parser.add_argument("--markdown", action="store_true", help="print publishable markdown")
     parser.add_argument("--json", action="store_true", help="print metrics as JSON")
     parser.add_argument(
@@ -34,9 +37,27 @@ def main() -> None:
         action="store_true",
         help="control-group baseline: Human / Playwright / LLM / this platform",
     )
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="sensitivity sweep of the AI-QE score over generator priors",
+    )
     args = parser.parse_args()
 
-    params = Params(seed=args.seed, total_tests=args.tests, gen_accuracy=args.gen_accuracy)
+    if args.sweep:
+        from .sweep import render_markdown as sweep_md, render_text as sweep_text, run_sweep
+        rows = run_sweep(seed=args.seed)
+        print(sweep_md(rows) if args.markdown else sweep_text(rows))
+        return
+
+    params = Params(
+        seed=args.seed,
+        total_tests=args.tests,
+        gen_accuracy=args.gen_accuracy,
+        assertion_quality=args.assertion_quality,
+        requirement_coverage=args.requirement_coverage,
+        heal_mode=args.heal,
+    )
     result = run_benchmark(params)
 
     if args.compare:

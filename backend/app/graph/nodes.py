@@ -224,6 +224,35 @@ async def observe_node(state: TestState) -> TestState:
     return state
 
 
+def _detect_flaky(state: TestState, test_id: str | None) -> dict[str, Any] | None:
+    """Classify a failure as flaky from its in-run retry history.
+
+    Returns a root-cause-shaped dict when the history is long enough and
+    strongly alternating (score >= 0.6); otherwise ``None`` so the normal
+    LLM / heuristic classifier runs.
+    """
+    if not test_id:
+        return None
+    history = [
+        {"status": r.get("status"), "duration_ms": r.get("duration_ms", 0)}
+        for r in state.get("execution_results", [])
+        if r.get("test_id") == test_id
+    ]
+    if len(history) < 4:  # need enough observations to call flakiness
+        return None
+    det = detect_flakiness(history)
+    if det["classification"] != "flaky":
+        return None
+    return {
+        "classification": "flaky",
+        "root_cause": det.get("suspected_cause", "unknown"),
+        "confidence": det["flakiness_score"],
+        "evidence": [det["pass_fail_sequence"]],
+        "recommended_fix": "Quarantine and investigate instability.",
+        "affected_tests": [],
+    }
+
+
 # --------------------------------------------------------------------------- #
 # ANALYZE FAILURE
 # --------------------------------------------------------------------------- #
@@ -235,15 +264,19 @@ async def analyze_failure_node(state: TestState) -> TestState:
 
     analyzed: list[dict[str, Any]] = []
     for failure in failures:
-        try:
-            rc = await asyncio.to_thread(
-                analyze_failure_evidence,
-                failure,
-                {"evidence": state.get("evidence", {})},
-            )
-        except Exception as exc:  # noqa: BLE001 - LLM may be unavailable
-            logger.warning("LLM failure analysis failed (%s); using heuristic", exc)
-            rc = heuristic_classify(failure, {"evidence": state.get("evidence", {})})
+        flaky = _detect_flaky(state, failure.get("test_id"))
+        if flaky:
+            rc = flaky
+        else:
+            try:
+                rc = await asyncio.to_thread(
+                    analyze_failure_evidence,
+                    failure,
+                    {"evidence": state.get("evidence", {})},
+                )
+            except Exception as exc:  # noqa: BLE001 - LLM may be unavailable
+                logger.warning("LLM failure analysis failed (%s); using heuristic", exc)
+                rc = heuristic_classify(failure, {"evidence": state.get("evidence", {})})
         analyzed.append({"failure": failure, "root_cause": rc})
 
     # Use the highest-confidence classification as the run-level diagnosis.
