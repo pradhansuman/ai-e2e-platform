@@ -1,16 +1,21 @@
-"""LLM factory + LangSmith tracing bootstrap.
+"""LLM factory + LangSmith tracing bootstrap + multi-provider failover.
 
 Centralizes model construction so every agent uses a consistent model,
 temperature, and tracing configuration (spec section 11 + 13).
 
-Supported providers: OpenAI, Anthropic, and OpenRouter (OpenAI-compatible,
-including its free-tier models).
+Supported providers: OpenAI, Anthropic, OpenRouter (OpenAI-compatible,
+including free-tier models), Google Gemini, and Groq.
+
+Failover: when one provider's free tier is exhausted (HTTP 429), it is marked
+exhausted and the next provider is tried automatically — so a run keeps its
+LLM-powered path as long as *any* configured provider still has quota.
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import time
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -20,6 +25,10 @@ from pydantic import BaseModel
 from .config import settings
 
 _OPENROUTER_DEFAULT_HEADERS = None  # built lazily once
+
+# Provider name -> unix timestamp until which it is treated as exhausted.
+_EXHAUSTED: dict[str, float] = {}
+_EXHAUSTION_COOLDOWN_S = 600  # 10 minutes
 
 
 def _configure_langsmith() -> None:
@@ -32,7 +41,7 @@ def _configure_langsmith() -> None:
 
 
 def _resolve_provider() -> str:
-    """Resolve the effective LLM provider from config (auto-detection)."""
+    """Resolve the effective single LLM provider from config (auto-detection)."""
     if settings.llm_provider == "openrouter":
         return "openrouter"
     if settings.llm_provider == "openai":
@@ -41,9 +50,13 @@ def _resolve_provider() -> str:
         return "anthropic"
     if settings.llm_provider == "google":
         return "google"
-    # auto: prefer Gemini, then OpenRouter, then Anthropic, then OpenAI.
+    if settings.llm_provider == "groq":
+        return "groq"
+    # auto: prefer Gemini, then Groq, then OpenRouter, then Anthropic, then OpenAI.
     if settings.gemini_api_key:
         return "google"
+    if settings.groq_api_key:
+        return "groq"
     if settings.openrouter_api_key:
         return "openrouter"
     if settings.anthropic_api_key:
@@ -59,50 +72,119 @@ def _openrouter_headers() -> dict[str, str]:
     }
 
 
+def _make_openai_compat(
+    model: str,
+    api_key: str,
+    base_url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    temperature: float | None = None,
+) -> BaseChatModel:
+    """Build a ChatOpenAI pointed at any OpenAI-compatible endpoint."""
+    from langchain_openai import ChatOpenAI
+
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "api_key": api_key,
+        "base_url": base_url,
+        "temperature": settings.llm_temperature if temperature is None else temperature,
+        "max_retries": settings.llm_max_retries,
+        "timeout": settings.llm_timeout,
+    }
+    if headers:
+        kwargs["default_headers"] = headers
+    return ChatOpenAI(**kwargs)
+
+
 def get_llm(model: str | None = None, temperature: float | None = None) -> BaseChatModel:
-    """Return a chat model for the resolved provider."""
+    """Return a chat model for the resolved (single) provider."""
     _configure_langsmith()
-    temp = settings.llm_temperature if temperature is None else temperature
     provider = _resolve_provider()
 
     if provider == "google":
-        from langchain_openai import ChatOpenAI
-
-        return ChatOpenAI(
-            model=model or settings.gemini_model,
-            api_key=settings.gemini_api_key,
-            base_url=settings.gemini_base_url,
-            temperature=temp,
-            max_retries=settings.llm_max_retries,
-            timeout=settings.llm_timeout,
+        return _make_openai_compat(
+            model or settings.gemini_model,
+            settings.gemini_api_key or "",
+            settings.gemini_base_url,
+            temperature=temperature,
         )
-
+    if provider == "groq":
+        return _make_openai_compat(
+            model or settings.groq_model,
+            settings.groq_api_key or "",
+            settings.groq_base_url,
+            temperature=temperature,
+        )
     if provider == "openrouter":
-        from langchain_openai import ChatOpenAI
-
-        return ChatOpenAI(
-            model=model or settings.openrouter_model,
-            api_key=settings.openrouter_api_key,
-            base_url=settings.openrouter_base_url,
-            temperature=temp,
-            max_retries=settings.llm_max_retries,
-            timeout=settings.llm_timeout,
-            default_headers=_openrouter_headers(),
+        return _make_openai_compat(
+            model or settings.openrouter_model,
+            settings.openrouter_api_key or "",
+            settings.openrouter_base_url,
+            headers=_openrouter_headers(),
+            temperature=temperature,
         )
 
     from langchain.chat_models import init_chat_model
 
     return init_chat_model(
         model or settings.llm_model,
-        temperature=temp,
+        temperature=temperature,
     )
 
 
-def get_embeddings():
-    """Return an embeddings client for the vector store.
+def get_llm_candidates() -> list[tuple[str, BaseChatModel]]:
+    """Ordered list of `(provider_name, llm)` candidates for failover.
 
-    OpenRouter also exposes embedding endpoints, so route it the same way.
+    Providers with an unset key are omitted. Free providers come first; paid
+    providers are last. Exhausted providers (429 within the cooldown) are
+    dropped from the list.
     """
+    _configure_langsmith()
+    candidates: list[tuple[str, BaseChatModel]] = []
+    providers: list[tuple[str, str | None, Any]] = [
+        (
+            "gemini",
+            settings.gemini_api_key,
+            lambda: _make_openai_compat(
+                settings.gemini_model, settings.gemini_api_key or "", settings.gemini_base_url
+            ),
+        ),
+        (
+            "groq",
+            settings.groq_api_key,
+            lambda: _make_openai_compat(
+                settings.groq_model, settings.groq_api_key or "", settings.groq_base_url
+            ),
+        ),
+        (
+            "openrouter",
+            settings.openrouter_api_key,
+            lambda: _make_openai_compat(
+                settings.openrouter_model,
+                settings.openrouter_api_key or "",
+                settings.openrouter_base_url,
+                headers=_openrouter_headers(),
+            ),
+        ),
+    ]
+    for name, key, build in providers:
+        if not key:
+            continue
+        if _is_exhausted(name):
+            continue
+        candidates.append((name, build()))
+
+    if settings.anthropic_api_key:
+        from langchain.chat_models import init_chat_model
+        candidates.append(("anthropic", init_chat_model("claude-3-5-sonnet-latest")))
+    if settings.openai_api_key:
+        from langchain.chat_models import init_chat_model
+        candidates.append(("openai", init_chat_model(settings.llm_model)))
+    return candidates
+
+
+def get_embeddings():
+    """Return an embeddings client for the vector store."""
     from langchain_openai import OpenAIEmbeddings
 
     if _resolve_provider() == "google":
@@ -110,6 +192,12 @@ def get_embeddings():
             model="text-embedding-004",
             api_key=settings.gemini_api_key,
             base_url=settings.gemini_base_url,
+        )
+    if _resolve_provider() == "groq":
+        return OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=settings.groq_api_key,
+            base_url=settings.groq_base_url,
         )
     if _resolve_provider() == "openrouter":
         return OpenAIEmbeddings(
@@ -121,13 +209,39 @@ def get_embeddings():
 
 
 # --------------------------------------------------------------------------- #
-# Robust structured-output invocation
+# Exhaustion tracking (circuit breaker)
+# --------------------------------------------------------------------------- #
+def _mark_exhausted(name: str) -> None:
+    _EXHAUSTED[name] = time.time() + _EXHAUSTION_COOLDOWN_S
+
+
+def _is_exhausted(name: str) -> bool:
+    return _EXHAUSTED.get(name, 0.0) > time.time()
+
+
+def is_rate_limit_error(exc: Exception) -> bool:
+    """Heuristically detect an HTTP 429 / quota-exhaustion error."""
+    msg = str(exc).lower()
+    if any(tok in msg for tok in ("429", "rate limit", "exhausted", "quota")):
+        return True
+    try:
+        from openai import RateLimitError
+
+        if isinstance(exc, RateLimitError):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
+# --------------------------------------------------------------------------- #
+# Robust structured-output invocation (with failover)
 #
-# Free-tier models (e.g. OpenRouter `:free` slugs) frequently return output
-# wrapped in markdown fences, a bare JSON list instead of the requested object
-# shape, or plain prose when a complex Pydantic schema is requested. This helper
-# degrades gracefully: native structured output → raw JSON parse (fence-strip +
-# list-wrap) → one corrective re-prompt enforcing strict JSON.
+# Free-tier models frequently return output wrapped in markdown fences, a bare
+# JSON list instead of the requested object shape, or plain prose. This helper
+# degrades gracefully per-provider: native structured output → raw JSON parse
+# (fence-strip + list-wrap) → one corrective re-prompt. If a provider fails
+# outright (or is rate-limited), the next candidate provider is tried.
 # --------------------------------------------------------------------------- #
 _ModelT = TypeVar("_ModelT", bound=BaseModel)
 
@@ -189,13 +303,7 @@ def _item_model(ann: Any) -> type[_ModelT] | None:
 
 
 def _coerce_types(data: Any, model_cls: type[_ModelT]) -> Any:
-    """Coerce scalar/dict→list for list-typed fields, recursively.
-
-    Free-tier models often emit a bare string where a list is expected
-    (e.g. ``evidence: "..."``) or a dict where a list of sub-models is expected
-    (e.g. ``pages[].components: {...}``), which would otherwise fail Pydantic
-    validation and force a heuristic fallback.
-    """
+    """Coerce scalar/dict→list for list-typed fields, recursively."""
     if not isinstance(data, dict):
         return data
     hints = _hints(model_cls)
@@ -242,14 +350,13 @@ def _raw_parse(
     return model_cls.model_validate(data)
 
 
-def structured_invoke(
+def _attempt_with_llm(
     prompt: ChatPromptTemplate,
     inputs: dict[str, Any],
     model_cls: type[_ModelT],
-    llm: BaseChatModel | None = None,
+    llm: BaseChatModel,
 ) -> _ModelT:
-    """Invoke `prompt` and parse into `model_cls`, robust to free-tier quirks."""
-    llm = llm or get_llm()
+    """All three strategies on a single LLM; raises on total failure."""
     last_err: Exception | None = None
     # 1) Native structured output (function calling / JSON mode).
     try:
@@ -273,3 +380,35 @@ def structured_invoke(
         ]
     )
     return _raw_parse(strict, inputs, model_cls, llm)
+
+
+def structured_invoke(
+    prompt: ChatPromptTemplate,
+    inputs: dict[str, Any],
+    model_cls: type[_ModelT],
+    llm: BaseChatModel | None = None,
+    llms: list[tuple[str, BaseChatModel]] | None = None,
+) -> _ModelT:
+    """Invoke `prompt` and parse into `model_cls`, with provider failover.
+
+    Tries each candidate provider in order. A provider that returns a
+    rate-limit/exhaustion error is marked exhausted and skipped for the rest
+    of the process; a provider that returns malformed output is tried once
+    more via raw/corrective parse, then skipped for the next provider.
+    """
+    candidates: list[tuple[str, BaseChatModel]] = (
+        [("explicit", llm)] if llm is not None else (llms or get_llm_candidates())
+    )
+    last_err: Exception | None = None
+    for name, candidate in candidates:
+        if _is_exhausted(name):
+            continue
+        try:
+            return _attempt_with_llm(prompt, inputs, model_cls, candidate)
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            if is_rate_limit_error(exc):
+                _mark_exhausted(name)
+    if last_err is not None:
+        raise last_err
+    raise RuntimeError("No LLM candidates available (no API keys configured)")

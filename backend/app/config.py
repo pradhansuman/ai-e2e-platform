@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------ LLM
     # auto: prefer OpenRouter if a key is set, then Anthropic, then OpenAI.
-    llm_provider: Literal["auto", "openai", "openrouter", "anthropic", "google"] = "auto"
+    llm_provider: Literal["auto", "openai", "openrouter", "anthropic", "google", "groq"] = "auto"
     llm_model: str = "gpt-4o"
     llm_temperature: float = 0.0
     openai_api_key: str | None = None
@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.6-flash"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+    # Groq (OpenAI-compatible; free tier with fast llama models).
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
 
     # --- LLM resilience (free-tier models are often rate-limited) ---
     llm_max_retries: int = 4

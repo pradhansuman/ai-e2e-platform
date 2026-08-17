@@ -268,29 +268,38 @@ All settings are env-driven (`.env`, see `.env.example`). The important ones:
 
 ## Choosing an LLM provider
 
-Set exactly one provider + its key in `.env`.
+The platform **automatically fails over** across every provider you configure.
+When one returns `429` (quota exhausted), it is marked exhausted and the next
+provider is tried — so the LLM-powered path keeps working as long as *any*
+configured provider still has quota. Just add the keys you have; no provider
+switching is required.
 
 **Free tiers (no payment required):**
 
 ```bash
-# OpenRouter (many free models; ~50 free req/day)
-LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=<your-key>
-OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
-
 # Google Gemini (free tier ~20 req/day)
-LLM_PROVIDER=google
-GEMINI_API_KEY=<your-key>
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_API_KEY=***
+
+# Groq (fast llama models; generous free tier)
+GROQ_API_KEY=***
+
+# OpenRouter (many free models; ~50 free req/day)
+OPENROUTER_API_KEY=***
+OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
 ```
 
-**Paid:** set `LLM_PROVIDER=openai` + `OPENAI_API_KEY`, or
-`LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`.
+With `LLM_PROVIDER=auto` (default) the failover order is
+**Gemini → Groq → OpenRouter**. Pin a single provider with
+`LLM_PROVIDER=google|groq|openrouter|openai|anthropic` instead.
+
+**Paid:** add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` — paid providers are
+tried last.
 
 > Free models are rate-limited and occasionally return malformed JSON. The
-> platform's structured-output layer + deterministic fallbacks absorb this, so
-> a degraded run still produces a usable test suite — just expect a slower or
-> heuristic-driven run when a quota is exhausted.
+> structured-output layer + deterministic fallbacks absorb that, and the
+> multi-provider failover keeps the LLM path alive far longer than any single
+> free tier. When every provider is exhausted, runs degrade to deterministic
+> fallbacks (still functional).
 
 ## Running the tests
 
