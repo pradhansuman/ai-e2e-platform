@@ -274,8 +274,15 @@ def _is_exhausted(name: str) -> bool:
 
 
 def is_rate_limit_error(exc: Exception) -> bool:
-    """Heuristically detect an HTTP 429 / quota-exhaustion error."""
+    """Heuristically detect a *transient* HTTP 429 / quota-exhaustion error.
+
+    A 402 (payment required) is NOT a rate limit — it's a billing condition
+    that no retry or circuit-breaker cooldown will clear, so it must NOT mark
+    the provider exhausted (which would cascade into "no candidates").
+    """
     msg = str(exc).lower()
+    if "payment" in msg or "billing" in msg or "402" in msg:
+        return False
     if any(tok in msg for tok in ("429", "rate limit", "exhausted", "quota")):
         return True
     try:

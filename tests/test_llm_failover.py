@@ -137,3 +137,11 @@ def test_resolve_provider_auto_prefers_new_free_providers(monkeypatch):
     monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
     monkeypatch.setattr(llm.settings, "openai_api_key", None)
     assert llm._resolve_provider() == "cerebras"
+
+
+def test_is_rate_limit_error_false_for_payment_required():
+    err = RuntimeError(
+        "Error code: 402 - {'message': 'Payment required to access this resource.', "
+        "'type': 'payment_required_error', 'param': 'quota'}"
+    )
+    assert llm.is_rate_limit_error(err) is False

@@ -59,7 +59,7 @@ class Settings(BaseSettings):
 
     # Cerebras (OpenAI-compatible; free tier ~1M tokens/day, fast inference).
     cerebras_api_key: str | None = None
-    cerebras_model: str = "llama-3.3-70b"
+    cerebras_model: str = "gemma-4-31b"
     cerebras_base_url: str = "https://api.cerebras.ai/v1"
 
     # Mistral (OpenAI-compatible; free tier with rate limits).

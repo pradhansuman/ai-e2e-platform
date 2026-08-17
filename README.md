@@ -334,7 +334,7 @@ All settings are env-driven (`.env`, see `.env.example`). The important ones:
 | `GROQ_API_KEY` | — | Groq key (fast free llama models) |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
 | `CEREBRAS_API_KEY` | — | Cerebras key (free tier ~1M tok/day) |
-| `CEREBRAS_MODEL` | `llama-3.3-70b` | Cerebras model |
+| `CEREBRAS_MODEL` | `gemma-4-31b` | Cerebras model |
 | `MISTRAL_API_KEY` | — | Mistral key (free tier) |
 | `MISTRAL_MODEL` | `mistral-small-latest` | Mistral model |
 | `LANGSMITH_API_KEY` | — | LangSmith tracing (optional) |
