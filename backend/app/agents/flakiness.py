@@ -19,14 +19,25 @@ _CAUSES = (
 )
 
 
+_STATUS_NORMALIZE = {
+    "passed": "pass",
+    "pass": "pass",
+    "failed": "fail",
+    "fail": "fail",
+    "error": "fail",
+}
+
+
 def flakiness_score(sequence: list[str]) -> float:
     """Compute a 0-1 flakiness score from a pass/fail sequence.
 
     A perfectly stable test (all same) scores 0; a maximally alternating
     sequence scores 1. Short sequences are down-weighted to avoid overfitting
-    a single flip.
+    a single flip. Accepts both ``pass/fail`` and ``passed/failed`` statuses
+    (the executor emits the latter).
     """
-    seq = [s.lower() for s in sequence if s.lower() in {"pass", "fail"}]
+    seq = [_STATUS_NORMALIZE.get(s.lower(), s.lower()) for s in sequence]
+    seq = [s for s in seq if s in {"pass", "fail"}]
     n = len(seq)
     if n < 2:
         return 0.0

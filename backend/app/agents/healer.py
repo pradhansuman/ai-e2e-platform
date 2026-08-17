@@ -115,12 +115,12 @@ def heuristic_heal(original_locator: str, dom: str) -> HealingSuggestion:
     weights = (("data-testid", 0.95), ("id", 0.9), ("name", 0.8), ("aria-label", 0.75))
     if token:
         for attr, weight in weights:
-            for v in attrs.get(attr, set()):
+            for v in sorted(attrs.get(attr, set())):
                 if token.lower() in v.lower():
                     add(f'[{attr}="{v}"]', weight, f"attribute {attr}={v} matched token")
     if not candidates:
         for attr, weight in weights:
-            for v in list(attrs.get(attr, set()))[:3]:
+            for v in sorted(attrs.get(attr, set()))[:3]:
                 add(f'[{attr}="{v}"]', weight, f"stable attribute {attr}={v}")
 
     candidates.sort(key=lambda c: -c["score"])
