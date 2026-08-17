@@ -22,8 +22,8 @@ false-healing) are inverted.
 
 Definitions (keep these stable so the score is comparable across runs):
 
-  * defect_detection   — mutation score: injected mutations correctly
-                         caught AND diagnosed / total mutations injected.
+  * defect_detection   — mutation score (fault-detection power): injected
+                         mutations the generated tests caught / total injected.
   * requirement_coverage — fraction of ground-truth requirements covered.
   * root_cause_accuracy — correct diagnosis of deterministic failures.
   * test_quality       — generated tests whose locator+assertion is correct.

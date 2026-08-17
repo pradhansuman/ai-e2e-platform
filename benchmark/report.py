@@ -116,19 +116,20 @@ def render_markdown(result: BenchResult) -> str:
     out.append("## Mutation corpus")
     out.append("")
     out.append(
-        "Ten injected mutation classes with known ground-truth labels; the platform "
-        "is scored on whether it both catches **and** correctly diagnoses each one."
+        "Ten injected mutation classes with known ground-truth labels. The "
+        "mutation score measures **fault-detection power**: the fraction of "
+        "injected defects the generated tests actually *catch* (fail on)."
     )
     out.append("")
-    out.append("| Mutation | Class | Injected | Detected | Accuracy |")
+    out.append("| Mutation | Class | Injected | Caught | Detection |")
     out.append("|---|---|---|---|---|")
     for key in sorted(c["mutation_breakdown"]):
         label = key.replace("_", " ").capitalize()
         cls = MUTATIONS[key]["classification"]
         injected = c["mutation_breakdown"][key]
-        detected = c["mutation_detected_breakdown"].get(key, 0)
-        acc = detected / injected * 100 if injected else 0.0
-        out.append(f"| {label} | `{cls}` | {injected} | {detected} | {acc:.0f}% |")
+        caught = c["mutation_caught_breakdown"].get(key, 0)
+        acc = caught / injected * 100 if injected else 0.0
+        out.append(f"| {label} | `{cls}` | {injected} | {caught} | {acc:.0f}% |")
     out.append("")
     out.append("## Method")
     out.append("")

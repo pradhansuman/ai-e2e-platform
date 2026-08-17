@@ -37,6 +37,10 @@ class Params:
     # Ground-truth generator capability (measured by the benchmark, not set by
     # the platform). P(a generated test has a correct, resolvable locator).
     gen_accuracy: float = 0.86
+    # P(a generated test asserts on the behavior a mutation changes, i.e. the
+    # test actually *catches* the injected defect). This is the platform's
+    # fault-detection power — the mutation score measures caught / injected.
+    assertion_quality: float = 0.80
     # Fraction of an app's requirements that end up tested (coverage realism).
     requirement_coverage: float = 0.88
 
@@ -239,20 +243,26 @@ def _simulate_execution(
     if not test["locator_correct"]:
         status, error = "failed", f"waiting for selector `#gen-bad-{test['test_id']}`"
         broken_locator = f"#gen-bad-{test['test_id']}"
-    elif mutation == "broken_locator":
-        broken_locator = _break_selector(_el_for(test), rng)
-        status, error = "failed", f"waiting for selector `{broken_locator}`"
-    elif mutation == "requirement_change":
-        status, error = "failed", f"no element matching `{test['target_selector']}`"
-        broken_locator = test["target_selector"]
+    elif mutation == "clean":
+        status, error = "passed", ""
     elif mutation == "flaky":
         status = "passed" if rng.random() < 0.5 else "failed"
         if status == "failed":
             error = MUTATIONS["flaky"]["error"]
-    elif mutation == "clean":
-        status, error = "passed", ""
     elif mutation in MUTATIONS:
-        status, error = "failed", MUTATIONS[mutation]["error"]
+        # Fault-detection gate: a generated test only catches the injected
+        # defect if it asserts on the mutated behavior. Otherwise it passes
+        # despite the defect (a *missed* mutation — no fault-detection power).
+        if rng.random() < params.assertion_quality:
+            status = "failed"
+            if mutation == "broken_locator":
+                broken_locator = _break_selector(_el_for(test), rng)
+                error = f"waiting for selector `{broken_locator}`"
+            elif mutation == "requirement_change":
+                broken_locator = test["target_selector"]
+                error = f"no element matching `{test['target_selector']}`"
+            else:
+                error = MUTATIONS[mutation]["error"]
 
     # Ambiguous error text -> heuristic_classify cannot place it ("unknown").
     if status == "failed" and rng.random() < params.ambiguous_failure_rate:
@@ -296,7 +306,8 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         "generated": 0, "accurate_tests": 0,
         "failures": 0, "deterministic_failures": 0,
         "root_cause_correct": 0,
-        "mutations_injected": 0, "mutations_detected": 0, "mutation_breakdown": {}, "mutation_detected_breakdown": {},
+        "mutations_injected": 0, "mutations_caught": 0,
+        "mutation_breakdown": {}, "mutation_caught_breakdown": {},
         "heal_attempts": 0, "heal_success": 0, "false_heals": 0,
         "flaky_injected": 0, "flaky_detected": 0,
         "interventions": 0,
@@ -330,6 +341,15 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
             mutation = "gen_bad" if not test["locator_correct"] else _inject_mutation(rng, params)
             result = _simulate_execution(test, mutation, rng, params)
 
+            # Count injected defect mutations regardless of whether the test
+            # caught them — fault-detection power = caught / injected.
+            if mutation in DEFECT_MUTATIONS:
+                c["mutations_injected"] += 1
+                c["mutation_breakdown"][mutation] = c["mutation_breakdown"].get(mutation, 0) + 1
+                if result["status"] == "failed":
+                    c["mutations_caught"] += 1
+                    c["mutation_caught_breakdown"][mutation] = c["mutation_caught_breakdown"].get(mutation, 0) + 1
+
             if result["status"] == "failed":
                 c["failures"] += 1
                 app_fail += 1
@@ -354,15 +374,6 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                 rc = heuristic_classify(result, {"evidence": {}})  # REAL agent
                 if rc["classification"] == _ground_truth_label(mutation):
                     c["root_cause_correct"] += 1
-                # Mutation (fault-detection) score: did the platform both catch
-                # AND correctly identify an injected mutation?
-                if mutation in DEFECT_MUTATIONS:
-                    c["mutations_injected"] += 1
-                    c["mutation_breakdown"][mutation] = c["mutation_breakdown"].get(mutation, 0) + 1
-                    detected = rc["classification"] == _ground_truth_label(mutation)
-                    if detected:
-                        c["mutations_detected"] += 1
-                        c["mutation_detected_breakdown"][mutation] = c["mutation_detected_breakdown"].get(mutation, 0) + 1
 
                 # Self-healing for healable automation defects (REAL heuristic).
                 if rc["classification"] == "automation_defect" and mutation in HEALABLE_MUTATIONS:
@@ -406,7 +417,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
     req_cov = len(c["covered_requirements"]) / c["total_requirements"] * 100 if c["total_requirements"] else 0.0
     gen_acc = c["accurate_tests"] / total * 100 if total else 0.0
     rc_acc = c["root_cause_correct"] / c["deterministic_failures"] * 100 if c["deterministic_failures"] else 0.0
-    mutation_score = c["mutations_detected"] / c["mutations_injected"] * 100 if c["mutations_injected"] else 0.0
+    mutation_score = c["mutations_caught"] / c["mutations_injected"] * 100 if c["mutations_injected"] else 0.0
     heal_success = c["heal_success"] / c["heal_attempts"] * 100 if c["heal_attempts"] else 0.0
     false_heal = c["false_heals"] / c["heal_attempts"] * 100 if c["heal_attempts"] else 0.0
     flaky_acc = c["flaky_detected"] / c["flaky_injected"] * 100 if c["flaky_injected"] else 0.0
@@ -442,9 +453,9 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
             "failures": c["failures"],
             "root_cause_correct": c["root_cause_correct"],
             "mutations_injected": c["mutations_injected"],
-            "mutations_detected": c["mutations_detected"],
+            "mutations_caught": c["mutations_caught"],
             "mutation_breakdown": dict(c["mutation_breakdown"]),
-            "mutation_detected_breakdown": dict(c["mutation_detected_breakdown"]),
+            "mutation_caught_breakdown": dict(c["mutation_caught_breakdown"]),
             "heal_attempts": c["heal_attempts"],
             "heal_success": c["heal_success"],
             "false_heals": c["false_heals"],

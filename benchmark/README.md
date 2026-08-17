@@ -21,7 +21,7 @@ PYTHONPATH=backend .venv/bin/python -m benchmark --seed 7 --tests 600 --gen-accu
 |---|---|
 | Requirement coverage | ground-truth requirements covered by generated tests ÷ total |
 | Test-generation accuracy | generated tests with a correct, resolvable locator ÷ total |
-| Defect detection (mutation score) | injected mutations correctly caught **and** diagnosed ÷ total mutations |
+| Defect detection (mutation score) | injected mutations the generated tests *caught* ÷ total mutations (fault-detection power) |
 | Root-cause accuracy | failures correctly classified (`product_defect` vs `automation_defect`) ÷ deterministic failures |
 | Self-healing success | heals that recovered the intended element ÷ heal attempts |
 | False-healing rate | heals that pointed at the *wrong* element ÷ heal attempts |
@@ -99,8 +99,11 @@ Ten injected mutation classes with known ground-truth labels (see
 9. Timing issue → `timing`
 10. Flaky test → detected by history scoring, not healed
 
-The **defect-detection (mutation) score** = injected defects correctly caught
-and diagnosed ÷ total injected defects — the platform's fault-detection power.
+The **defect-detection (mutation) score** = injected defects the generated tests
+*caught* (failed on) ÷ total injected defects — the platform's **fault-detection
+power**: whether its tests actually detect the mutation at all, not whether a
+failure was later diagnosed. Diagnosis accuracy is measured separately as
+root-cause accuracy.
 
 ## Mode
 

@@ -86,12 +86,14 @@ def test_comparison_has_four_rows_and_score():
 def test_mutation_breakdown_is_consistent():
     r = run_benchmark(Params(total_tests=200, seed=5))
     c = r.counts
-    # breakdown sums to the injected/detected totals
+    # breakdown sums to the injected/caught totals
     assert sum(c["mutation_breakdown"].values()) == c["mutations_injected"]
-    assert sum(c["mutation_detected_breakdown"].values()) == c["mutations_detected"]
-    # flaky is excluded from the mutation (defect-detection) score
+    assert sum(c["mutation_caught_breakdown"].values()) == c["mutations_caught"]
+    # flaky is excluded from the mutation (fault-detection) score
     assert "flaky" not in c["mutation_breakdown"]
     assert c["mutations_injected"] > 0
-    # defect_detection_pct == detected / injected
-    expected = round(c["mutations_detected"] / c["mutations_injected"] * 100, 1)
+    # fault-detection power is strictly between 0 and 100% (some mutations missed)
+    assert 0 < c["mutations_caught"] < c["mutations_injected"]
+    # defect_detection_pct == caught / injected
+    expected = round(c["mutations_caught"] / c["mutations_injected"] * 100, 1)
     assert r.metrics["defect_detection_pct"] == expected

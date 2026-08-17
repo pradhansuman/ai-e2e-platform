@@ -7,29 +7,29 @@
 | Metric | Value |
 |---|---|
 | Requirement coverage | 83.3% |
-| Test-generation accuracy | 86.9% |
-| Defect detection (mutation score) | 92.3% |
-| Root-cause accuracy | 92.1% |
-| Self-healing success | 60.0% |
-| False-healing rate | 40.0% |
-| Flaky detection accuracy | 84.0% |
-| Human intervention | 15.7% |
-| Avg diagnosis time | 2.86 sec |
+| Test-generation accuracy | 87.1% |
+| Defect detection (mutation score) | 80.9% |
+| Root-cause accuracy | 90.4% |
+| Self-healing success | 47.3% |
+| False-healing rate | 52.7% |
+| Flaky detection accuracy | 86.7% |
+| Human intervention | 14.5% |
+| Avg diagnosis time | 2.83 sec |
 | Cost per test | $0.0013 |
-| **AI-QE Score** | **83.2/100** |
+| **AI-QE Score** | **78.4/100** |
 
 ## AI-QE Score breakdown
 
 | Dimension | Weight | Score (0-1) | Weighted |
 |---|---|---|---|
-| Defect Detection | 20% | 0.923 | 0.185 |
+| Defect Detection | 20% | 0.809 | 0.162 |
 | Requirement Coverage | 15% | 0.833 | 0.125 |
-| Root Cause Accuracy | 15% | 0.921 | 0.138 |
-| Test Quality | 15% | 0.869 | 0.130 |
-| Self-Healing | 10% | 0.600 | 0.060 |
-| Reliability | 10% | 0.600 | 0.060 |
-| Flaky Detection | 5% | 0.840 | 0.042 |
-| Human Intervention | 5% | 0.843 | 0.042 |
+| Root Cause Accuracy | 15% | 0.904 | 0.136 |
+| Test Quality | 15% | 0.871 | 0.131 |
+| Self-Healing | 10% | 0.473 | 0.047 |
+| Reliability | 10% | 0.473 | 0.047 |
+| Flaky Detection | 5% | 0.867 | 0.043 |
+| Human Intervention | 5% | 0.855 | 0.043 |
 | Cost Efficiency | 5% | 0.999 | 0.050 |
 
 ## Volume
@@ -37,40 +37,40 @@
 - **6 applications** across 6 domains (e-commerce ×2, banking, forms/widgets, UI patterns, HR/admin)
 - **54 workflows** (user journeys)
 - **72 ground-truth requirements**
-- **510 generated tests** (443 with correct locators)
-- **419 failures** → 359 correctly classified, 80 self-healing attempts, 50 flaky tests
+- **510 generated tests** (444 with correct locators)
+- **356 failures** → 300 correctly classified, 74 self-healing attempts, 45 flaky tests
 
 ## Per-application
 
 | App | Domain | Tests | Passed | Failed | Heals |
 |---|---|---|---|---|---|
-| Swag Labs | e-commerce | 85 | 15 | 70 | 15 |
-| ParaBank | banking | 85 | 15 | 70 | 16 |
-| DemoQA | forms / widgets | 85 | 13 | 72 | 13 |
-| The Internet | UI patterns | 85 | 15 | 70 | 12 |
-| OrangeHRM (demo) | HR / admin | 85 | 10 | 75 | 11 |
-| Automation Exercise | e-commerce | 85 | 23 | 62 | 13 |
+| Swag Labs | e-commerce | 85 | 27 | 58 | 8 |
+| ParaBank | banking | 85 | 29 | 56 | 12 |
+| DemoQA | forms / widgets | 85 | 28 | 57 | 10 |
+| The Internet | UI patterns | 85 | 26 | 59 | 14 |
+| OrangeHRM (demo) | HR / admin | 85 | 20 | 65 | 17 |
+| Automation Exercise | e-commerce | 85 | 24 | 61 | 13 |
 
 ## Cost
 
-- Total estimated LLM cost: **$0.6669** (blended $0.3/M in, $0.6/M out)
+- Total estimated LLM cost: **$0.6444** (blended $0.3/M in, $0.6/M out)
 - Cost per test: **$0.0013**
 
 ## Mutation corpus
 
-Ten injected mutation classes with known ground-truth labels; the platform is scored on whether it both catches **and** correctly diagnoses each one.
+Ten injected mutation classes with known ground-truth labels. The mutation score measures **fault-detection power**: the fraction of injected defects the generated tests actually *catch* (fail on).
 
-| Mutation | Class | Injected | Detected | Accuracy |
+| Mutation | Class | Injected | Caught | Detection |
 |---|---|---|---|---|
-| Api response change | `product_defect` | 26 | 23 | 88% |
-| Auth change | `authentication` | 19 | 17 | 89% |
-| Broken locator | `automation_defect` | 59 | 53 | 90% |
-| Business rule change | `product_defect` | 32 | 29 | 91% |
-| Calculation change | `product_defect` | 23 | 22 | 96% |
-| Requirement change | `automation_defect` | 28 | 27 | 96% |
-| Timing issue | `timing` | 46 | 43 | 93% |
-| Validation removed | `product_defect` | 33 | 31 | 94% |
-| Value change | `product_defect` | 57 | 53 | 93% |
+| Api response change | `product_defect` | 29 | 24 | 83% |
+| Auth change | `authentication` | 24 | 21 | 88% |
+| Broken locator | `automation_defect` | 57 | 47 | 82% |
+| Business rule change | `product_defect` | 25 | 18 | 72% |
+| Calculation change | `product_defect` | 19 | 13 | 68% |
+| Requirement change | `automation_defect` | 40 | 36 | 90% |
+| Timing issue | `timing` | 42 | 33 | 79% |
+| Validation removed | `product_defect` | 37 | 25 | 68% |
+| Value change | `product_defect` | 56 | 49 | 88% |
 
 ## Method
 
