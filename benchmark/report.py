@@ -1,7 +1,7 @@
 """Benchmark report rendering (markdown + terminal)."""
 from __future__ import annotations
 
-from .engine import BenchResult
+from .engine import BenchResult, MUTATIONS
 from .quality import compute_ai_qe_score, DIMENSION_LABELS, WEIGHTS
 
 
@@ -113,24 +113,42 @@ def render_markdown(result: BenchResult) -> str:
                f"${result.params.cost_output_per_1m}/M out)")
     out.append(f"- Cost per test: **${m['cost_per_test_usd']}**")
     out.append("")
+    out.append("## Mutation corpus")
+    out.append("")
+    out.append(
+        "Ten injected mutation classes with known ground-truth labels; the platform "
+        "is scored on whether it both catches **and** correctly diagnoses each one."
+    )
+    out.append("")
+    out.append("| Mutation | Class | Count |")
+    out.append("|---|---|---|")
+    for key, count in sorted(c["mutation_breakdown"].items()):
+        label = key.replace("_", " ").capitalize()
+        cls = MUTATIONS[key]["classification"]
+        out.append(f"| {label} | `{cls}` | {count} |")
+    out.append("")
     out.append("## Method")
     out.append("")
     out.append(
-        "Four mutation classes are injected with known ground-truth labels, then the "
-        "platform is scored on how well it recovers:"
+        "Mutations are injected with known ground-truth labels, then the platform "
+        "is scored on how well it recovers:"
     )
     out.append("")
     out.append(
-        "1. **Real defects** (product bugs) → must be classified `product_defect`, not healed."
+        "1. **Product defects** (value / validation / API response / business rule / "
+        "calculation change) → must be classified `product_defect` and escalated, never healed."
     )
     out.append(
-        "2. **Broken locators** (typo'd selector) → `automation_defect` → self-heal to the correct element."
+        "2. **Automation defects** (broken locator, requirement change) → `automation_defect` → self-heal to the correct element."
     )
     out.append(
-        "3. **Flaky tests** (alternating pass/fail) → detected by history scoring, not healed."
+        "3. **Auth change** → `authentication` (security regression, not a locator fix)."
     )
     out.append(
-        "4. **Requirement changes** (element removed/renamed) → stale locator; heal must not silently change intent."
+        "4. **Timing issue** → `timing` (wait/race, not a product bug)."
+    )
+    out.append(
+        "5. **Flaky tests** (alternating pass/fail) → detected by history scoring, not healed."
     )
     out.append("")
     return "\n".join(out)

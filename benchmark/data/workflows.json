@@ -1,0 +1,218 @@
+[
+  {
+    "app": "swaglabs",
+    "workflow": "login_valid"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "login_locked_out"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "login_empty"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "browse_inventory"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "sort_products"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "add_to_cart"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "remove_from_cart"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "checkout_complete"
+  },
+  {
+    "app": "swaglabs",
+    "workflow": "logout"
+  },
+  {
+    "app": "parabank",
+    "workflow": "login_valid"
+  },
+  {
+    "app": "parabank",
+    "workflow": "login_invalid"
+  },
+  {
+    "app": "parabank",
+    "workflow": "register_customer"
+  },
+  {
+    "app": "parabank",
+    "workflow": "view_accounts"
+  },
+  {
+    "app": "parabank",
+    "workflow": "account_detail"
+  },
+  {
+    "app": "parabank",
+    "workflow": "transfer_funds"
+  },
+  {
+    "app": "parabank",
+    "workflow": "pay_bill"
+  },
+  {
+    "app": "parabank",
+    "workflow": "update_profile"
+  },
+  {
+    "app": "parabank",
+    "workflow": "logout"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "textbox_fill"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "textbox_validate_email"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "checkbox_toggle"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "radiobutton_select"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "dropdown_select"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "button_click"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "navigate_elements"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "form_submit"
+  },
+  {
+    "app": "demoqa",
+    "workflow": "verify_output"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "form_login"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "form_login_invalid"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "dropdown_select"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "checkbox_toggle"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "hover_menu"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "file_upload"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "drag_drop"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "basic_auth"
+  },
+  {
+    "app": "theinternet",
+    "workflow": "dynamic_loading"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "login_valid"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "login_invalid"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "search_employee"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "add_employee"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "assign_leave"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "submit_timesheet"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "view_candidates"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "navigate_modules"
+  },
+  {
+    "app": "orangehrm",
+    "workflow": "logout"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "signup"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "signup_validate_email"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "login_valid"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "login_invalid"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "search_product"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "add_to_cart"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "update_cart_qty"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "checkout"
+  },
+  {
+    "app": "autopractice",
+    "workflow": "contact_form"
+  }
+]

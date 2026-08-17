@@ -15,7 +15,7 @@
 | 1 | Build the platform (discovery → generation → execution → diagnosis → healing → learning) | ✅ |
 | 2 | Benchmark 6 apps / 500+ tests / 4 mutation classes / 9 metrics | ✅ (deterministic baseline) |
 | 3 | Control-group baseline: Human / Playwright / LLM / platform + AI-QE Score | ✅ (estimates for A–C, measured for platform) |
-| 4 | Mutation-testing benchmark (fault-detection power = AI E2E Mutation Score) | 🔶 mutation score added, full mutation corpus pending |
+| 4 | Mutation-testing benchmark (fault-detection power = AI E2E Mutation Score) | ✅ full 10-class corpus + mutation score |
 | 5 | Change-aware regression intelligence (git → affected tests → risk → minimal set) | ⬜ |
 | 6 | Application knowledge graph (requirement ↔ API ↔ component ↔ journey ↔ test ↔ defect ↔ incident) | ⬜ |
 | 7 | Production → test intelligence (logs/traces/analytics → risk → generate → validate) | ⬜ |

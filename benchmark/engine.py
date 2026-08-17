@@ -40,12 +40,9 @@ class Params:
     # Fraction of an app's requirements that end up tested (coverage realism).
     requirement_coverage: float = 0.88
 
-    # Mutation mix (fractions of the *correctly-generated* tests).
-    p_broken_locator: float = 0.15
-    p_real_defect: float = 0.10
-    p_flaky: float = 0.15
-    p_requirement_change: float = 0.10
-    # remainder -> clean (no mutation)
+    # Mutation mix lives in the module-level ``MUTATIONS`` registry (see below);
+    # weights are applied over correctly-generated tests, with the remainder
+    # falling through to ``clean`` (no mutation).
 
     # Diagnosis noise: fraction of failures whose error text is ambiguous enough
     # that heuristic_classify cannot place them (measures real root-cause accuracy).
@@ -54,6 +51,9 @@ class Params:
     flaky_detectability: float = 0.85
     # Simulated LLM diagnosis latency (seconds) — live mode measures the real value.
     diag_time_range: tuple[float, float] = (1.2, 4.5)
+    # Healing path: "heuristic" (deterministic fallback, no LLM) or "llm"
+    # (uses ``propose_healing``; requires an LLM key with quota).
+    heal_mode: str = "heuristic"
 
     # Cost model (USD per 1M tokens; cheap mid-tier model).
     cost_input_per_1m: float = 0.30
@@ -151,21 +151,78 @@ def _generate_for_app(
 
 
 # --------------------------------------------------------------------------- #
+# Mutation taxonomy (ground truth)
+#
+# The full defect-injection corpus from the roadmap (Phase 4). Each entry maps
+# an injected mutation to its *correct* classification and a synthesized error
+# message shaped like the executor's output. Weights are injection probabilities
+# over correctly-generated tests; the remainder is ``clean``.
+# --------------------------------------------------------------------------- #
+MUTATIONS: dict[str, dict[str, Any]] = {
+    # --- product defects: genuine bugs the platform must DETECT (not heal) ---
+    "value_change": {
+        "classification": "product_defect", "weight": 0.12,
+        "error": "expected text `Order Confirmed` but found `Error`",
+    },
+    "validation_removed": {
+        "classification": "product_defect", "weight": 0.07,
+        "error": "form accepted invalid email without validation error",
+    },
+    "api_response_change": {
+        "classification": "product_defect", "weight": 0.07,
+        "error": "expected field `orderTotal` in API response but was missing",
+    },
+    "business_rule_change": {
+        "classification": "product_defect", "weight": 0.06,
+        "error": "expected discount 10% but applied 0%",
+    },
+    "calculation_change": {
+        "classification": "product_defect", "weight": 0.06,
+        "error": "expected total 110 but got 100",
+    },
+    # --- automation defects: the platform must HEAL ---
+    "broken_locator": {
+        "classification": "automation_defect", "weight": 0.13, "healable": True,
+        "error": None,  # generated dynamically from the element id
+    },
+    "requirement_change": {
+        "classification": "automation_defect", "weight": 0.08, "healable": True,
+        "error": None,  # generated dynamically from the target selector
+    },
+    # --- auth / access: security regression ---
+    "auth_change": {
+        "classification": "authentication", "weight": 0.06,
+        "error": "expected 200 OK but got 403 Forbidden",
+    },
+    # --- timing / flaky: environmental ---
+    "timing_issue": {
+        "classification": "timing", "weight": 0.09,
+        "error": "Timed out after 30000ms waiting for element",
+    },
+    "flaky": {
+        "classification": "flaky", "weight": 0.11,
+        "error": "Timed out after 30000ms waiting for element",
+    },
+}
+
+# Defect mutations scored by the mutation score (fault-detection power).
+# ``flaky`` is excluded — it has its own flaky-detection metric.
+DEFECT_MUTATIONS = [
+    k for k, m in MUTATIONS.items() if m["classification"] != "flaky"
+]
+
+HEALABLE_MUTATIONS = {k for k, m in MUTATIONS.items() if m.get("healable")}
+
+
+# --------------------------------------------------------------------------- #
 # Mutation injection
 # --------------------------------------------------------------------------- #
 def _inject_mutation(rng: random.Random, params: Params) -> str:
     r = rng.random()
-    if r < params.p_broken_locator:
-        return "broken_locator"
-    r -= params.p_broken_locator
-    if r < params.p_real_defect:
-        return "real_defect"
-    r -= params.p_real_defect
-    if r < params.p_flaky:
-        return "flaky"
-    r -= params.p_flaky
-    if r < params.p_requirement_change:
-        return "requirement_change"
+    for key, m in MUTATIONS.items():
+        r -= m["weight"]
+        if r < 0:
+            return key
     return "clean"
 
 
@@ -188,12 +245,14 @@ def _simulate_execution(
     elif mutation == "requirement_change":
         status, error = "failed", f"no element matching `{test['target_selector']}`"
         broken_locator = test["target_selector"]
-    elif mutation == "real_defect":
-        status, error = "failed", "expected text `Order Confirmed` but found `Error`"
     elif mutation == "flaky":
         status = "passed" if rng.random() < 0.5 else "failed"
         if status == "failed":
-            error = "Timed out after 30000ms waiting for element"
+            error = MUTATIONS["flaky"]["error"]
+    elif mutation == "clean":
+        status, error = "passed", ""
+    elif mutation in MUTATIONS:
+        status, error = "failed", MUTATIONS[mutation]["error"]
 
     # Ambiguous error text -> heuristic_classify cannot place it ("unknown").
     if status == "failed" and rng.random() < params.ambiguous_failure_rate:
@@ -237,7 +296,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         "generated": 0, "accurate_tests": 0,
         "failures": 0, "deterministic_failures": 0,
         "root_cause_correct": 0,
-        "mutations_injected": 0, "mutations_detected": 0,
+        "mutations_injected": 0, "mutations_detected": 0, "mutation_breakdown": {},
         "heal_attempts": 0, "heal_success": 0, "false_heals": 0,
         "flaky_injected": 0, "flaky_detected": 0,
         "interventions": 0,
@@ -297,15 +356,14 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                     c["root_cause_correct"] += 1
                 # Mutation (fault-detection) score: did the platform both catch
                 # AND correctly identify an injected mutation?
-                if mutation in ("broken_locator", "real_defect", "requirement_change"):
+                if mutation in DEFECT_MUTATIONS:
                     c["mutations_injected"] += 1
+                    c["mutation_breakdown"][mutation] = c["mutation_breakdown"].get(mutation, 0) + 1
                     if rc["classification"] == _ground_truth_label(mutation):
                         c["mutations_detected"] += 1
 
                 # Self-healing for healable automation defects (REAL heuristic).
-                if rc["classification"] == "automation_defect" and mutation in (
-                    "broken_locator", "requirement_change",
-                ):
+                if rc["classification"] == "automation_defect" and mutation in HEALABLE_MUTATIONS:
                     c["interventions"] += 1  # approval gate (human approval on by default)
                     c["heal_attempts"] += 1
                     c["tokens_in"] += params.heal_tokens
@@ -315,7 +373,14 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                         if mutation == "requirement_change"
                         else dom_snapshot(elements)
                     )
-                    suggestion = heuristic_heal(result["_broken_locator"], heal_dom)  # REAL
+                    if params.heal_mode == "llm":
+                        from app.agents.healer import propose_healing
+                        suggestion = propose_healing(
+                            result["_broken_locator"], heal_dom,
+                            "recover the intended element without changing test intent",
+                        )
+                    else:
+                        suggestion = heuristic_heal(result["_broken_locator"], heal_dom)  # REAL
                     selected = suggestion.selected.selector if suggestion.selected else None
                     if _selector_hits_intent(selected, _el_for(test)):
                         c["heal_success"] += 1
@@ -376,6 +441,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
             "root_cause_correct": c["root_cause_correct"],
             "mutations_injected": c["mutations_injected"],
             "mutations_detected": c["mutations_detected"],
+            "mutation_breakdown": dict(c["mutation_breakdown"]),
             "heal_attempts": c["heal_attempts"],
             "heal_success": c["heal_success"],
             "false_heals": c["false_heals"],
@@ -390,8 +456,8 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
 
 def _ground_truth_label(mutation: str) -> str:
     """The 'correct' classification the platform is scored against."""
-    if mutation == "real_defect":
-        return "product_defect"
-    if mutation in ("gen_bad", "broken_locator", "requirement_change"):
+    if mutation == "gen_bad":
         return "automation_defect"
+    if mutation in MUTATIONS:
+        return MUTATIONS[mutation]["classification"]
     return "unknown"

@@ -105,4 +105,6 @@ def heuristic_classify(
         return rc("authentication", "Authentication/authorization failure", "Refresh test credentials/session", 0.6)
     if "expected text" in el or "expected value" in el or "expected url" in el:
         return rc("product_defect", "Assertion mismatch — expected condition not met", "Escalate to engineering for investigation", 0.4)
+    if ("expected" in el and any(k in el for k in (" but ", "found", "got", "missing", "applied"))) or "validation" in el:
+        return rc("product_defect", "Assertion mismatch — expected condition not met", "Escalate to engineering for investigation", 0.4)
     return rc("unknown", "Insufficient evidence for classification", "Manual investigation required", 0.1)

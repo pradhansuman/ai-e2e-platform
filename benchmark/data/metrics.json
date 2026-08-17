@@ -1,0 +1,25 @@
+{
+  "metrics": [
+    "requirement_coverage_pct",
+    "test_generation_accuracy_pct",
+    "defect_detection_pct",
+    "root_cause_accuracy_pct",
+    "self_healing_success_pct",
+    "false_healing_rate_pct",
+    "flaky_detection_accuracy_pct",
+    "human_intervention_pct",
+    "avg_diagnosis_time_sec",
+    "cost_per_test_usd"
+  ],
+  "ai_qe_weights": {
+    "Defect Detection": 0.2,
+    "Requirement Coverage": 0.15,
+    "Root Cause Accuracy": 0.15,
+    "Test Quality": 0.15,
+    "Self-Healing": 0.1,
+    "Reliability": 0.1,
+    "Flaky Detection": 0.05,
+    "Human Intervention": 0.05,
+    "Cost Efficiency": 0.05
+  }
+}

@@ -1,0 +1,434 @@
+[
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-LOGIN-1",
+    "text": "Standard user logs in with valid credentials",
+    "category": "auth"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-LOGIN-2",
+    "text": "Locked-out user is rejected with an error",
+    "category": "auth"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-LOGIN-3",
+    "text": "Empty credentials are rejected",
+    "category": "auth"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-INV-1",
+    "text": "Inventory lists all products after login",
+    "category": "catalog"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-INV-2",
+    "text": "Products sort by name and price",
+    "category": "catalog"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-CART-1",
+    "text": "Items add to / remove from the cart",
+    "category": "cart"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-CART-2",
+    "text": "Cart badge reflects item count",
+    "category": "cart"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-CHK-1",
+    "text": "Checkout requires first name, last name, postal code",
+    "category": "checkout"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-CHK-2",
+    "text": "Checkout shows order confirmation on success",
+    "category": "checkout"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-SEC-1",
+    "text": "Login form is served over HTTPS",
+    "category": "security"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-SEC-2",
+    "text": "Passwords are masked on input",
+    "category": "security"
+  },
+  {
+    "app": "swaglabs",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Core flows are keyboard navigable",
+    "category": "accessibility"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-LOGIN-1",
+    "text": "Customer logs in with valid credentials",
+    "category": "auth"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-LOGIN-2",
+    "text": "Invalid credentials show an error",
+    "category": "auth"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-REG-1",
+    "text": "New customer can register",
+    "category": "auth"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Accounts overview lists balances",
+    "category": "accounts"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-ACC-2",
+    "text": "Account detail shows transaction history",
+    "category": "accounts"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-TRF-1",
+    "text": "Funds transfer debits and credits correctly",
+    "category": "transactions"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-TRF-2",
+    "text": "Transfer validates amount and account",
+    "category": "transactions"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-BILL-1",
+    "text": "Bill payment schedules a payee payment",
+    "category": "transactions"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-SEC-1",
+    "text": "Login is served over HTTPS",
+    "category": "security"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-SEC-2",
+    "text": "Session times out on inactivity",
+    "category": "security"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-ACC-3",
+    "text": "Forms are keyboard accessible",
+    "category": "accessibility"
+  },
+  {
+    "app": "parabank",
+    "requirement_id": "REQ-DATA-1",
+    "text": "Account numbers are masked in UI",
+    "category": "data"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-TB-1",
+    "text": "Text-box form accepts all fields",
+    "category": "forms"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-TB-2",
+    "text": "Submitted values are echoed in output",
+    "category": "forms"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-TB-3",
+    "text": "Invalid email is rejected",
+    "category": "forms"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-CB-1",
+    "text": "Checkboxes toggle correctly",
+    "category": "widgets"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-RB-1",
+    "text": "Radio groups allow single selection",
+    "category": "widgets"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-DD-1",
+    "text": "Dropdowns select and persist a value",
+    "category": "widgets"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-BTN-1",
+    "text": "Button clicks fire once",
+    "category": "widgets"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-NAV-1",
+    "text": "Side navigation links resolve",
+    "category": "navigation"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-SEC-1",
+    "text": "Forms validate input length",
+    "category": "security"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Labels are associated with inputs",
+    "category": "accessibility"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-ACC-2",
+    "text": "Focus order follows the DOM",
+    "category": "accessibility"
+  },
+  {
+    "app": "demoqa",
+    "requirement_id": "REQ-DATA-1",
+    "text": "Submitted data is not stored server-side",
+    "category": "data"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-LOGIN-1",
+    "text": "Form login accepts valid credentials",
+    "category": "auth"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-LOGIN-2",
+    "text": "Invalid login shows an error banner",
+    "category": "auth"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-DD-1",
+    "text": "Dropdown selects options",
+    "category": "widgets"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-CB-1",
+    "text": "Checkboxes toggle on click",
+    "category": "widgets"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-HOV-1",
+    "text": "Hover reveals submenu",
+    "category": "widgets"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-UPL-1",
+    "text": "File upload accepts a file",
+    "category": "forms"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-DRAG-1",
+    "text": "Drag-and-drop reorders elements",
+    "category": "widgets"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-AUTH-1",
+    "text": "Basic auth challenge appears",
+    "category": "security"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Dynamic controls are keyboard reachable",
+    "category": "accessibility"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-NAV-1",
+    "text": "Home page lists all example links",
+    "category": "navigation"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-ERR-1",
+    "text": "404 page renders gracefully",
+    "category": "error"
+  },
+  {
+    "app": "theinternet",
+    "requirement_id": "REQ-STAT-1",
+    "text": "Status codes page returns expected codes",
+    "category": "api"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-LOGIN-1",
+    "text": "Admin logs in with valid credentials",
+    "category": "auth"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-LOGIN-2",
+    "text": "Invalid credentials show an error",
+    "category": "auth"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-EMP-1",
+    "text": "Employee list is searchable",
+    "category": "employee"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-EMP-2",
+    "text": "Employee record can be added",
+    "category": "employee"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-LEAVE-1",
+    "text": "Leave can be assigned",
+    "category": "leave"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-TIME-1",
+    "text": "Timesheet can be submitted",
+    "category": "time"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-REC-1",
+    "text": "Recruitment candidates are listed",
+    "category": "recruitment"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-SEC-1",
+    "text": "Session requires authentication",
+    "category": "security"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-SEC-2",
+    "text": "Role-based menus are enforced",
+    "category": "security"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Dashboard is keyboard navigable",
+    "category": "accessibility"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-NAV-1",
+    "text": "Sidebar modules resolve",
+    "category": "navigation"
+  },
+  {
+    "app": "orangehrm",
+    "requirement_id": "REQ-DATA-1",
+    "text": "PII is masked in listings",
+    "category": "data"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-REG-1",
+    "text": "New user can sign up",
+    "category": "auth"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-REG-2",
+    "text": "Signup validates email format",
+    "category": "auth"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-LOGIN-1",
+    "text": "Registered user logs in",
+    "category": "auth"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-LOGIN-2",
+    "text": "Incorrect password is rejected",
+    "category": "auth"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-SEARCH-1",
+    "text": "Product search returns results",
+    "category": "catalog"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-CART-1",
+    "text": "Product adds to cart",
+    "category": "cart"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-CART-2",
+    "text": "Cart quantity updates",
+    "category": "cart"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-CHK-1",
+    "text": "Checkout collects payment",
+    "category": "checkout"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-CONT-1",
+    "text": "Contact form submits",
+    "category": "forms"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-SUB-1",
+    "text": "Newsletter subscription registers",
+    "category": "forms"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-ACC-1",
+    "text": "Product cards are keyboard focusable",
+    "category": "accessibility"
+  },
+  {
+    "app": "autopractice",
+    "requirement_id": "REQ-NAV-1",
+    "text": "Top navigation categories resolve",
+    "category": "navigation"
+  }
+]

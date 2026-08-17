@@ -80,12 +80,27 @@ requirements, workflows, and DOM elements (see `apps.py`):
 
 ## Mutation model
 
-Four injected failure classes with known ground-truth labels:
+Ten injected mutation classes with known ground-truth labels (see
+`engine.py::MUTATIONS` and the exported `data/defects.json`):
 
-1. **Real defects** — genuine product bugs (assertion mismatch) → expect `product_defect`.
-2. **Broken locators** — a selector typo → expect `automation_defect` → self-heal to the right element.
-3. **Flaky tests** — alternating pass/fail history → expect flaky detection (not healing).
-4. **Requirement changes** — element removed/renamed → stale locator; healing must not silently change intent.
+**Product defects — must be detected (`product_defect`), never healed:**
+1. Value change (`expected text X but found Y`)
+2. Validation removed
+3. API response change
+4. Business-rule change
+5. Calculation change
+
+**Automation defects — must be self-healed (`automation_defect`):**
+6. Broken locator (selector typo)
+7. Requirement change (element removed/renamed)
+
+**Other:**
+8. Auth change → `authentication` (security regression)
+9. Timing issue → `timing`
+10. Flaky test → detected by history scoring, not healed
+
+The **defect-detection (mutation) score** = injected defects correctly caught
+and diagnosed ÷ total injected defects — the platform's fault-detection power.
 
 ## Mode
 
@@ -94,6 +109,11 @@ failure evidence shaped like the executor's output, then calls the **real**
 deterministic agents — `heuristic_classify`, `heuristic_heal`,
 `detect_flakiness` — so the diagnosis / healing / flakiness numbers reflect the
 actual code paths. LLM test generation is simulated with a parameterized accuracy.
+
+Healing path is selectable via `heal_mode`:
+- `heuristic` (default) — deterministic fallback, no LLM needed.
+- `llm` — uses `propose_healing` (requires an LLM key with quota). This is the
+  path to measure the *true* self-healing score once quota is available.
 
 A `live` mode (drive the real LangGraph pipeline + browser against the six apps)
 is the intended next step once an LLM key with quota is available.
@@ -108,6 +128,8 @@ is the intended next step once an LLM key with quota is available.
 | `approaches.py` | control-group baseline (Human / Playwright / LLM / platform) |
 | `report.py` | markdown + terminal rendering |
 | `__main__.py` | CLI (`--seed`, `--tests`, `--gen-accuracy`, `--json`, `--markdown`, `--compare`) |
+| `export_data.py` | dump ground truth to the canonical public layout (`data/*.json`) |
+| `data/` | exported ground truth: applications, requirements, workflows, defects, metrics |
 
 ## Public benchmark repo (planned)
 

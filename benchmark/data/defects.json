@@ -1,0 +1,54 @@
+{
+  "value_change": {
+    "classification": "product_defect",
+    "weight": 0.12,
+    "error": "expected text `Order Confirmed` but found `Error`"
+  },
+  "validation_removed": {
+    "classification": "product_defect",
+    "weight": 0.07,
+    "error": "form accepted invalid email without validation error"
+  },
+  "api_response_change": {
+    "classification": "product_defect",
+    "weight": 0.07,
+    "error": "expected field `orderTotal` in API response but was missing"
+  },
+  "business_rule_change": {
+    "classification": "product_defect",
+    "weight": 0.06,
+    "error": "expected discount 10% but applied 0%"
+  },
+  "calculation_change": {
+    "classification": "product_defect",
+    "weight": 0.06,
+    "error": "expected total 110 but got 100"
+  },
+  "broken_locator": {
+    "classification": "automation_defect",
+    "weight": 0.13,
+    "healable": true,
+    "error": null
+  },
+  "requirement_change": {
+    "classification": "automation_defect",
+    "weight": 0.08,
+    "healable": true,
+    "error": null
+  },
+  "auth_change": {
+    "classification": "authentication",
+    "weight": 0.06,
+    "error": "expected 200 OK but got 403 Forbidden"
+  },
+  "timing_issue": {
+    "classification": "timing",
+    "weight": 0.09,
+    "error": "Timed out after 30000ms waiting for element"
+  },
+  "flaky": {
+    "classification": "flaky",
+    "weight": 0.11,
+    "error": "Timed out after 30000ms waiting for element"
+  }
+}
