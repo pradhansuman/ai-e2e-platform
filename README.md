@@ -4,15 +4,67 @@ An autonomous, AI-driven end-to-end testing platform built on **LangChain +
 LangGraph + LangSmith + Python + Playwright + FastAPI + PostgreSQL + Vector DB
 + Docker + GitHub Actions**.
 
-It is a real engineering platform — not a chatbot that emits Playwright code.
-It discovers an application, models it, generates and prioritizes tests,
-executes them through a validated tool-call boundary, diagnoses failures,
-attempts controlled self-healing (with human approval), retests, and evaluates
-its own output quality.
+Give it a URL (or a spec), and it discovers the application, models it,
+generates and prioritizes a test suite, executes the tests in a real browser,
+classifies any failures, attempts controlled self-healing (with human
+approval), retests, and reports — with a deterministic fallback for every AI
+step so it keeps working even when the LLM is rate-limited or down.
+
+[![CI](https://github.com/pradhansuman/ai-e2e-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/pradhansuman/ai-e2e-platform/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
 
-## Pipeline (Definition of Done)
+## Table of contents
+
+- [What it does](#what-it-does)
+- [How it works](#how-it-works)
+- [Repository layout](#repository-layout)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Choosing an LLM provider](#choosing-an-llm-provider)
+- [Running the tests](#running-the-tests)
+- [Security](#security)
+- [Deployment (Docker)](#deployment-docker)
+- [Database migrations](#database-migrations)
+- [Modification guide](#modification-guide)
+- [Status](#status)
+- [License](#license)
+
+---
+
+## What it does
+
+- **Application discovery** — crawls the app and builds an *Application
+  Knowledge Model* (pages, forms, inputs, buttons, workflows, auth, risk
+  areas).
+- **Requirements analysis** — turns user stories into testable business rules
+  and flags missing/ambiguous/contradictory requirements.
+- **AI test generation** — writes a comprehensive suite (happy paths,
+  negative, boundary, validation, auth, security, regression, …).
+- **Risk-based prioritization** — scores tests P0–P3.
+- **Browser execution** — drives Chromium/Firefox/WebKit via Playwright through
+  an **allow-listed** set of actions (the LLM can never inject arbitrary JS).
+- **Evidence capture** — screenshots, console/network logs, traces, videos.
+- **Failure intelligence** — classifies every failure into a 10-category
+  taxonomy (`product_defect`, `automation_defect`, `environment`, `test_data`,
+  `timing`, `network`, `dependency`, `authentication`, `configuration`,
+  `flaky`, `unknown`) with confidence + evidence + a recommended fix.
+- **Self-healing** — repairs broken locators and gates every change behind
+  **human approval**.
+- **Retry + flakiness detection** — retry budgets and pass/fail-sequence
+  tracking.
+- **Persistence + reporting** — durable run/results/failure history (SQLite in
+  dev, PostgreSQL in prod) and a dashboard.
+- **REST API + RBAC** — FastAPI with JWT roles (`admin` / `engineer` /
+  `viewer`).
+- **Async worker queue** — non-blocking `POST /runs`; poll `GET /runs/{id}`.
+- **Observability** — optional LangSmith tracing + an evaluation harness.
+
+## How it works
 
 ```
 Give URL → Discover → Understand → Model → Generate → Prioritize → Execute →
@@ -20,7 +72,31 @@ Capture Evidence → Detect Failure → Diagnose → Controlled Healing → Rete
 Validate → Report → Trace & Evaluate
 ```
 
----
+Implemented as a **13-node LangGraph state machine**:
+
+```
+ingest → discover → analyze_requirements → generate_tests → prioritize
+        → execute → observe ──(failed)──→ analyze_failure
+                              │                 │
+                              │        (automation_defect)
+                              │                 ▼
+                              │            diagnose → repair → [human approval]
+                              │                          │
+                              └──(passed)──→ validate ←── retest ←─┘
+                                                      │
+                                                      ▼
+                                                   report
+```
+
+Every AI step has a **deterministic fallback**, so the platform never hard-fails
+on a free-tier LLM:
+
+| Step | LLM path | Fallback |
+|---|---|---|
+| Discovery | `discover_application_model` | raw crawl data |
+| Test generation | `generate_tests` | `fallback_generate_tests` (smoke/form/action) |
+| Failure analysis | `analyze_failure_evidence` | `heuristic_classify` |
+| Self-healing | `propose_healing` | `heuristic_heal` |
 
 ## Repository layout
 
@@ -39,11 +115,11 @@ ai-e2e-platform/
 │   │   ├── agents/              # discovery, requirements, generator,
 │   │   │                        #   prioritizer, analyzer, healer, flakiness
 │   │   ├── graph/               # LangGraph state + nodes + workflow
-│   │   ├── tools/               # reusable LangChain tools
 │   │   ├── executor/            # Playwright executor + allow-listed actions
-│   │   ├── models/              # SQLAlchemy ORM (15 entities)
-│   │   ├── services/            # storage + vector-store facade
+│   │   ├── models/              # SQLAlchemy ORM
+│   │   ├── services/            # persistence, worker queue, vector store
 │   │   └── evaluation/          # AI quality scoring + LangSmith eval
+│   ├── alembic/                 # database migrations
 │   ├── requirements.txt
 │   └── pyproject.toml
 ├── frontend/                    # dashboard (HTML/CSS/JS, no build step)
@@ -56,139 +132,212 @@ ai-e2e-platform/
 └── docs/architecture.md
 ```
 
----
+## Requirements
 
-## Quickstart
+- **Python 3.12+** (3.12–3.13 recommended; 3.14 is too new for some wheels)
+- Playwright browsers (installed in a step below)
+- Optional: Docker (for Postgres + the containerised stack)
+- An LLM API key (any of OpenAI / Anthropic / OpenRouter / Google Gemini —
+  free tiers work)
 
-### Option A — Docker (recommended)
+## Installation
+
+### Option A — Local (recommended for development)
 
 ```bash
-cp .env.example .env          # add your OPENAI_API_KEY / LANGSMITH_API_KEY
+# 1. Clone
+git clone https://github.com/pradhansuman/ai-e2e-platform.git
+cd ai-e2e-platform
+
+# 2. Create a virtualenv
+python3.12 -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r backend/requirements.txt
+
+# 4. Install a browser
+python -m playwright install chromium      # Linux: add --with-deps
+
+# 5. Configure
+cp .env.example .env                 # then edit .env (see "Configuration")
+
+# 6. Run the API
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+Open the interactive docs at http://localhost:8000/docs and the dashboard at
+`frontend/index.html`.
+
+### Option B — Docker
+
+```bash
+cp .env.example .env                 # add your LLM key
 docker compose up --build
 # API:        http://localhost:8000/docs
-# Dashboard:  open frontend/index.html (or serve it) — points at /api/v1
 ```
 
-### Option B — Local
+## Quick start
+
+### Run a test run (CLI)
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
-python -m playwright install --with-deps chromium
-cp .env.example .env
-cd backend && uvicorn app.main:app --reload --port 8000
+cd backend
+python -m app.cli run --objective "smoke test" --url https://example.com
 ```
 
-### Run a test run
+Limit and prioritise:
 
 ```bash
-# REST
+python -m app.cli run --objective "checkout flow" \
+  --url https://example.com --priority P0 --limit 5
+```
+
+### Watch it in a visible browser (headed + slow motion)
+
+```bash
+BROWSER_HEADLESS=false BROWSER_SLOW_MO=700 \
+  python -m app.cli run --objective "smoke" --url https://example.com
+```
+
+### Run a test run (REST API)
+
+```bash
 curl -X POST http://localhost:8000/api/v1/runs \
   -H "Content-Type: application/json" \
   -d '{"objective":"smoke test","application":{"url":"https://example.com","source":"url"}}'
+# → {"run_id": "...", "status": "queued"}
 
-# CLI
-cd backend && python -m app.cli run --objective "smoke" --url https://example.com
+curl http://localhost:8000/api/v1/runs/<run_id>
+# → {"status": "running" | "passed" | "failed", ...}
 ```
 
-### Run the unit tests
+`POST /runs` is non-blocking; the run is drained by a background worker.
+
+### Mint an API token (when auth is enabled)
 
 ```bash
-cd backend && pytest ../../tests -q
+python -m app.cli token --role engineer
+# pass as: Authorization: Bearer <token>
 ```
-
----
 
 ## Configuration
 
-All settings are env-driven (see `.env.example`). The important ones:
+All settings are env-driven (`.env`, see `.env.example`). The important ones:
 
-| Variable | Purpose |
-|---|---|
-| `LLM_PROVIDER` | `auto` / `openai` / `openrouter` / `anthropic` |
-| `OPENROUTER_API_KEY` | OpenRouter key (works with free-tier models) |
-| `OPENROUTER_MODEL` | default free model, e.g. `google/gemma-4-31b-it:free` |
-| `OPENAI_API_KEY` | OpenAI access (used when provider resolves to `openai`) |
-| `LANGSMITH_API_KEY` / `LANGSMITH_PROJECT` | tracing + evaluation |
-| `DATABASE_URL` | Postgres (asyncpg) |
-| `VECTOR_STORE_URL` | Qdrant endpoint |
-| `HUMAN_APPROVAL_REQUIRED` | gate self-healing behind approval |
-| `MAX_RETRIES` / `MAX_HEAL_RETRIES` | loop-safety bounds |
-| `ALLOW_UNAUTHENTICATED` | dev mode (disable RBAC); set `false` in prod |
+| Variable | Default | Purpose |
+|---|---|---|
+| `LLM_PROVIDER` | `auto` | `auto` / `openai` / `openrouter` / `anthropic` / `google` |
+| `LLM_MODEL` | `gpt-4o` | model used when provider is `openai` |
+| `OPENAI_API_KEY` | — | OpenAI key |
+| `ANTHROPIC_API_KEY` | — | Anthropic key |
+| `OPENROUTER_API_KEY` | — | OpenRouter key (free models available) |
+| `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it:free` | OpenRouter model |
+| `GEMINI_API_KEY` | — | Google Gemini key |
+| `GEMINI_MODEL` | `gemini-3.6-flash` | Gemini model |
+| `LANGSMITH_API_KEY` | — | LangSmith tracing (optional) |
+| `LANGSMITH_TRACING` | `true` | enable tracing |
+| `DATABASE_URL` | Postgres URL | dev tip: `sqlite+aiosqlite:///./e2e.db` |
+| `BROWSER_HEADLESS` | `true` | `false` = visible browser |
+| `BROWSER_SLOW_MO` | `0` | ms delay between actions (watchable runs) |
+| `BROWSER_TYPE` | `chromium` | `chromium` / `firefox` / `webkit` |
+| `MAX_RETRIES` / `MAX_HEAL_RETRIES` | `3` / `2` | loop-safety bounds |
+| `HUMAN_APPROVAL_REQUIRED` | `true` | gate self-healing behind approval |
+| `WORKER_CONCURRENCY` | `1` | background workers draining the run queue |
+| `SECRET_KEY` | dev default | **≥32 bytes** for production JWT signing |
+| `ALLOW_UNAUTHENTICATED` | `true` | `false` enforces JWT RBAC |
 
-### Using a free OpenRouter key
+## Choosing an LLM provider
 
-Set in `.env`:
+Set exactly one provider + its key in `.env`.
+
+**Free tiers (no payment required):**
 
 ```bash
+# OpenRouter (many free models; ~50 free req/day)
 LLM_PROVIDER=openrouter
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemma-4-31b-it:free
+OPENROUTER_API_KEY=<your-key>
+OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
+
+# Google Gemini (free tier ~20 req/day)
+LLM_PROVIDER=google
+GEMINI_API_KEY=<your-key>
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
-Any OpenAI-compatible free model works. **For the platform's structured
-(function-calling) outputs, use `google/gemma-4-31b-it:free`** — verified
-here. `nvidia/nemotron-3-super-120b-a12b:free` handles plain chat but not
-reliably tool calling. If a model id errors with "unavailable for free", the
-paid slug usually drops the `:free` suffix.
+**Paid:** set `LLM_PROVIDER=openai` + `OPENAI_API_KEY`, or
+`LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`.
 
----
+> Free models are rate-limited and occasionally return malformed JSON. The
+> platform's structured-output layer + deterministic fallbacks absorb this, so
+> a degraded run still produces a usable test suite — just expect a slower or
+> heuristic-driven run when a quota is exhausted.
+
+## Running the tests
+
+```bash
+# from the repo root (conftest.py puts backend/ on sys.path)
+python -m pytest tests -q
+```
+
+CI runs the same suite on every push (Python 3.12, ubuntu-latest).
+
+## Security
+
+- **Allow-listed browser verbs only** — the LLM cannot run arbitrary
+  JavaScript or shell.
+- **Prompt-injection guard** — untrusted page content is sanitised before it
+  reaches the LLM.
+- **Secret/PII masking** — sensitive fields are masked in logs and stored data.
+- **JWT RBAC** — `admin` / `engineer` / `viewer` roles; enforced when
+  `ALLOW_UNAUTHENTICATED=false`.
+- **Human-approval gate** — self-healing mutations are blocked pending approval
+  (`HUMAN_APPROVAL_REQUIRED=true`).
+
+## Deployment (Docker)
+
+`docker compose up --build` starts the API + Postgres + Qdrant. See
+`docker-compose.yml` and `docker/backend.Dockerfile`.
+
+## Database migrations
+
+Migrations live in `backend/alembic/`. In dev the schema is created
+automatically; in production the server runs `alembic upgrade head` on
+startup.
+
+```bash
+cd backend
+alembic upgrade head          # apply
+alembic revision --autogenerate -m "message"   # create a new migration
+```
 
 ## Modification guide
 
 | To change… | Edit… |
 |---|---|
-| LLM model / temperature | `backend/app/config.py` (`llm_model`) or `.env` |
+| LLM model / temperature | `backend/app/config.py` or `.env` |
 | Prompt wording / behavior | `prompts/*.md` + the matching `ChatPromptTemplate` in `backend/app/agents/*.py` |
-| Allowed browser actions | `backend/app/executor/actions.py` (add to `ACTIONS`) |
-| Priority scoring weights | `backend/app/agents/prioritizer.py` (`DEFAULT_WEIGHTS`) |
-| Failure taxonomy | `backend/app/schemas.py` (`RootCause.classification`) |
-| RBAC roles per tool | `backend/app/security.py` (`TOOL_PERMISSIONS`) |
-| DB schema | `backend/app/models/orm.py` + `database/schema.sql` (+ Alembic migration) |
-| Dashboard tiles | `frontend/index.html` + `frontend/app.js` |
+| Allowed browser actions | `backend/app/executor/actions.py` |
+| Priority scoring weights | `backend/app/agents/prioritizer.py` |
+| Failure taxonomy | `backend/app/schemas.py` |
+| RBAC roles per tool | `backend/app/security.py` |
+| DB schema | `backend/app/models/orm.py` + Alembic migration |
+| Dashboard | `frontend/index.html` + `frontend/app.js` |
 | CI stages / secrets | `.github/workflows/ci.yml` |
 
----
+## Status
 
-## Quality coverage
+Verified end-to-end: discovery → generation → execution → failure
+classification → self-healing → re-execution (live against saucedemo.com,
+demoqa.com, and a local app; **49 unit tests passing**, CI green).
 
-- **Correctness**: structured outputs (Pydantic) with validation; deterministic
-  prioritization; allow-listed browser verbs.
-- **Safety**: prompt-injection guard, secret/PII masking, RBAC, audit logging,
-  credential isolation, human-approval gate for mutations.
-- **Observability**: LangSmith tracing across agents/LLM/tools/graph nodes;
-  token + latency capture; `ai_traces` table.
-- **Testability**: pure routing/prioritization/flakiness functions with unit
-  tests; graph nodes are isolated and independently testable.
-- **Reliability**: retry/heal budgets, graceful degradation (LLM/DB/browser
-  failures are caught and logged, never crash the run).
-- **UX states**: dashboard handles loading, empty (no failures), and
-  offline/error states; responsive mobile/desktop layout.
+- A deliberately failing assertion was classified `product_defect`.
+- A broken locator was classified `automation_defect`, healed to a stable
+  selector, and re-run to green.
+- JWT RBAC, durable persistence, the async worker queue, and Alembic
+  migrations are all implemented.
 
-## Status (verified)
+## License
 
-The full pipeline has been run **live** against `https://www.saucedemo.com`:
-
-- Discovery (crawl) → 3 deterministic fallback tests → prioritization →
-  Playwright execution → **all passed** (pass rate 1.0).
-- A deliberately failing test was detected, classified `product_defect`, and
-  the root cause reported.
-- A broken locator was detected → classified `automation_defect` → healed to a
-  stable selector → re-executed → **passed** (self-healing loop closed).
-
-Every AI step has a deterministic fallback, so the platform keeps working even
-when the (free-tier) LLM is rate-limited or returns malformed output:
-
-| Step | LLM path | Fallback |
-|---|---|---|
-| Discovery | `discover_application_model` | raw crawl data |
-| Test generation | `generate_tests` | `fallback_generate_tests` (smoke/form/action) |
-| Failure analysis | `analyze_failure_evidence` | `heuristic_classify` |
-| Self-healing | `propose_healing` | `heuristic_heal` |
-
-JWT RBAC, durable persistence, a background worker queue (non-blocking
-`POST /runs`; status via `GET /runs/{id}`), and Alembic migrations are all
-implemented (SQLite for dev, PostgreSQL in production). Mint API tokens with
-`python -m app.cli token --role engineer` and pass them as
-`Authorization: Bearer <token>`; set `ALLOW_UNAUTHENTICATED=false` + a
-`SECRET_KEY` (>=32 bytes) to enforce auth.
+[MIT](LICENSE)
