@@ -30,6 +30,7 @@ def main() -> None:
     parser.add_argument("--assertion-quality", type=float, default=0.80)
     parser.add_argument("--requirement-coverage", type=float, default=0.88)
     parser.add_argument("--heal", choices=["heuristic", "llm"], default="heuristic")
+    parser.add_argument("--classify", choices=["heuristic", "llm"], default="heuristic")
     parser.add_argument("--markdown", action="store_true", help="print publishable markdown")
     parser.add_argument("--json", action="store_true", help="print metrics as JSON")
     parser.add_argument(
@@ -57,6 +58,7 @@ def main() -> None:
         assertion_quality=args.assertion_quality,
         requirement_coverage=args.requirement_coverage,
         heal_mode=args.heal,
+        classify_mode=args.classify,
     )
     result = run_benchmark(params)
 

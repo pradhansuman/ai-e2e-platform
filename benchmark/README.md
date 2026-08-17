@@ -119,6 +119,13 @@ Healing path is selectable via `heal_mode`:
 - `llm` — uses `propose_healing` (requires an LLM key with quota). This is the
   path to measure the *true* self-healing score once quota is available.
 
+**Live LLM pilot (Mistral, 60 tests):** `--classify llm --heal llm` measured
+self-healing at **83.3% success / 0% false-heal** (vs 47% / 53% for the
+deterministic fallback) and root-cause accuracy at 75.8% (the hand-tuned
+heuristic wins on simple, well-patterned errors; the LLM wins on healing
+semantic disambiguation). Run with `--classify llm --heal llm` once an LLM
+key with quota is configured.
+
 A `live` mode (drive the real LangGraph pipeline + browser against the six apps)
 is the intended next step once an LLM key with quota is available.
 

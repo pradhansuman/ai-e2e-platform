@@ -14,14 +14,14 @@
 |---|---|---|
 | 1 | Build the platform (discovery → generation → execution → diagnosis → healing → learning) | ✅ |
 | 2 | Benchmark 6 apps / 500+ tests / 4 mutation classes / 9 metrics | ✅ (deterministic baseline) |
-| 3 | Control-group baseline: Human / Playwright / LLM / platform + AI-QE Score | ✅ (estimates for A–C, measured for platform) |
+| 3 | Control-group baseline: Human / Playwright / LLM / platform + AI-QE Score | ✅ (estimates for A–C, measured platform; LLM path measured via Mistral) |
 | 4 | Mutation-testing benchmark (fault-detection power = AI E2E Mutation Score) | ✅ full 10-class corpus + mutation score |
 | 5 | Change-aware regression intelligence (git → affected tests → risk → minimal set) | ⬜ |
 | 6 | Application knowledge graph (requirement ↔ API ↔ component ↔ journey ↔ test ↔ defect ↔ incident) | ⬜ |
 | 7 | Production → test intelligence (logs/traces/analytics → risk → generate → validate) | ⬜ |
 | 8 | Continuous autonomous QE loop (observe → risk → design → select → generate → execute → diagnose → heal → learn) | ⬜ |
 | 9 | Enterprise platform (multi-tenancy, RBAC, SSO, audit, cost controls, model routing, integrations) | ⬜ |
-| 10 | Public benchmark + research (reproducible `ai-e2e-benchmark` repo) | 🔶 seeded module, public repo pending |
+| 10 | Public benchmark + research (reproducible `ai-e2e-benchmark` repo) | ✅ published at github.com/pradhansuman/ai-e2e-benchmark |
 | 11 | Product / SaaS | ⬜ |
 
 ## The critical next move

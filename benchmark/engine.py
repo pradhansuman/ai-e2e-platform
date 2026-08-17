@@ -58,6 +58,9 @@ class Params:
     # Healing path: "heuristic" (deterministic fallback, no LLM) or "llm"
     # (uses ``propose_healing``; requires an LLM key with quota).
     heal_mode: str = "heuristic"
+    # Classification path: "heuristic" (deterministic) or "llm"
+    # (uses ``analyze_failure_evidence``; requires an LLM key with quota).
+    classify_mode: str = "heuristic"
 
     # Cost model (USD per 1M tokens; cheap mid-tier model).
     cost_input_per_1m: float = 0.30
@@ -371,7 +374,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                 c["diag_ms_total"] += rng.uniform(*params.diag_time_range) * 1000
                 c["diag_count"] += 1
 
-                rc = heuristic_classify(result, {"evidence": {}})  # REAL agent
+                rc = _classify(result, params)
                 if rc["classification"] == _ground_truth_label(mutation):
                     c["root_cause_correct"] += 1
 
@@ -466,6 +469,19 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         },
         per_app=per_app,
     )
+
+
+def _classify(result: dict[str, Any], params: Params) -> dict[str, Any]:
+    """Classify a failure via the LLM (live) or the deterministic heuristic."""
+    if params.classify_mode == "llm":
+        from app.agents.analyzer import analyze_failure_evidence
+
+        try:
+            rc = analyze_failure_evidence(result, {"evidence": {}})
+            return rc if isinstance(rc, dict) else rc.model_dump()
+        except Exception:  # noqa: BLE001 - LLM may be unavailable
+            pass
+    return heuristic_classify(result, {"evidence": {}})
 
 
 def _ground_truth_label(mutation: str) -> str:
