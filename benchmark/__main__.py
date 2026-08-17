@@ -17,6 +17,8 @@ from .approaches import (
     build_comparison,
     render_comparison_markdown,
     render_comparison_text,
+    render_healing_markdown,
+    render_healing_text,
 )
 from .engine import Params, run_benchmark
 from .report import render_markdown, render_text
@@ -43,7 +45,24 @@ def main() -> None:
         action="store_true",
         help="sensitivity sweep of the AI-QE score over generator priors",
     )
+    parser.add_argument(
+        "--export",
+        metavar="PATH",
+        help="write the platform's result as a benchmark-result.json submission",
+    )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        metavar="N",
+        help="run N seeds and report mean ± stdev (confidence intervals)",
+    )
     args = parser.parse_args()
+
+    if args.repeat:
+        from .repeat import render_markdown as repeat_md, render_text as repeat_text, run_repeated
+        agg = run_repeated(args.repeat)
+        print(repeat_md(agg) if args.markdown else repeat_text(agg))
+        return
 
     if args.sweep:
         from .sweep import render_markdown as sweep_md, render_text as sweep_text, run_sweep
@@ -62,12 +81,24 @@ def main() -> None:
     )
     result = run_benchmark(params)
 
+    if args.export:
+        from .contract import export_result
+        submission = export_result("ai-e2e-platform", result.metrics, result.counts)
+        from pathlib import Path
+        Path(args.export).write_text(json.dumps(submission, indent=2) + "\n")
+        print(f"wrote {args.export}")
+        return
+
     if args.compare:
         rows = build_comparison(result.metrics)
         if args.markdown:
             print(render_comparison_markdown(rows))
+            print()
+            print(render_healing_markdown())
         else:
             print(render_comparison_text(rows))
+            print()
+            print(render_healing_text())
         return
 
     if args.json:

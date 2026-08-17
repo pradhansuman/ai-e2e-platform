@@ -208,6 +208,10 @@ ai-e2e-platform/
 │   │   ├── agents/              # discovery, understanding, requirements,
 │   │   │                        #   generator, intelligence, prioritizer,
 │   │   │                        #   analyzer, healer, flakiness
+│   │   ├── intelligence/        # Phase 5–9: change analysis, knowledge graph,
+│   │   │                        #   production intelligence, continuous QE,
+│   │   │                        #   scheduler, cost/usage, integrations,
+│   │   │                        #   secrets, SSO, RBAC
 │   │   ├── graph/               # LangGraph state + nodes + workflow
 │   │   ├── executor/            # Playwright executor + allow-listed actions
 │   │   ├── models/              # SQLAlchemy ORM
@@ -216,6 +220,13 @@ ai-e2e-platform/
 │   ├── alembic/                 # database migrations
 │   ├── requirements.txt
 │   └── pyproject.toml
+├── benchmark/                   # the deterministic benchmark + standard evaluator
+│   ├── apps.py / engine.py      # 6 apps, 54 workflows, 10-class mutation corpus
+│   ├── quality.py               # AI-QE Score (weighted composite)
+│   ├── approaches.py            # control group (measured/estimated/pending)
+│   ├── contract.py              # benchmark-result.json contract + evaluator
+│   ├── repeat.py                # confidence intervals (mean ± stdev)
+│   └── sweep.py                 # sensitivity sweep
 ├── frontend/                    # dashboard (HTML/CSS/JS, no build step)
 ├── database/schema.sql          # reference Postgres schema
 ├── prompts/                     # versioned prompt templates
@@ -223,7 +234,7 @@ ai-e2e-platform/
 ├── docker/backend.Dockerfile
 ├── docker-compose.yml
 ├── .github/workflows/ci.yml     # lint → unit → e2e smoke → LangSmith eval
-└── docs/architecture.md
+└── docs/                        # architecture.md, roadmap.md, product.md
 ```
 
 ## Requirements
@@ -448,13 +459,30 @@ alembic revision --autogenerate -m "message"   # create a new migration
 
 Verified end-to-end: discovery → generation → execution → failure
 classification → self-healing → re-execution (live against saucedemo.com,
-demoqa.com, and a local app; **70 unit tests passing**, CI green).
+demoqa.com, and a local app; **115 unit tests passing**, CI green).
 
 - A deliberately failing assertion was classified `product_defect`.
 - A broken locator was classified `automation_defect`, healed to a stable
   selector, and re-run to green.
 - JWT RBAC, durable persistence, the async worker queue, and Alembic
   migrations are all implemented.
+
+### Benchmark status
+
+The benchmark contains six applications, 54 workflows, 510 test scenarios, and
+a 10-class mutation corpus with independently defined ground truth.
+
+The AI E2E platform, deterministic agents, and LLM-assisted healing have been
+experimentally evaluated.
+
+Human and conventional Playwright baselines are treated as independent control
+groups and are never fabricated or estimated as measured results. The benchmark
+provides a standardized result contract (`benchmark-result.json`) and a scoring
+harness (`python -m benchmark.contract …`) for external baseline submissions.
+
+Live enterprise integrations such as SSO, Jira, GitHub, Slack, CI/CD and
+Kubernetes require deployment-specific credentials and infrastructure and are
+therefore validated separately from the core benchmark.
 
 ## License
 

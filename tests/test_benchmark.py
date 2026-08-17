@@ -77,10 +77,34 @@ def test_comparison_has_four_rows_and_score():
     # the platform row carries the measured metrics
     platform = next(r for r in rows if r["key"] == "platform")
     assert platform["metrics"] == m
-    assert all(0 <= r["ai_qe_score"] <= 100 for r in rows)
-    # markdown renders without error and includes the score row
+    # human + playwright are pending (metrics=None, no fabricated score)
+    for key in ("human", "playwright"):
+        row = next(r for r in rows if r["key"] == key)
+        assert row["measurement"] == "pending"
+        assert row["metrics"] is None
+        assert row["ai_qe_score"] is None
+    # llm one-shot is an estimate, platform is measured — both have scores
+    for key in ("llm", "platform"):
+        row = next(r for r in rows if r["key"] == key)
+        assert 0 <= row["ai_qe_score"] <= 100
+    # markdown renders without error and includes the score row + pending marks
     md = render_comparison_markdown(rows)
     assert "AI-QE Score" in md
+    assert "—" in md  # pending cells render as em-dash, not fabricated numbers
+
+
+def test_healing_modes_are_reported_separately():
+    from benchmark.approaches import HEALING_MODES, render_healing_markdown
+    modes = {h["mode"] for h in HEALING_MODES}
+    assert "Deterministic fallback" in modes
+    assert "Mistral LLM" in modes
+    # deterministic fallback has a false-healing rate > 0; Mistral does not
+    det = next(h for h in HEALING_MODES if h["mode"] == "Deterministic fallback")
+    mist = next(h for h in HEALING_MODES if h["mode"] == "Mistral LLM")
+    assert det["false_healing_pct"] > 0
+    assert mist["false_healing_pct"] == 0.0
+    md = render_healing_markdown()
+    assert "Mistral LLM" in md and "83.3" in md
 
 
 def test_mutation_breakdown_is_consistent():

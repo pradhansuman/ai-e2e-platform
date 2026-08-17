@@ -81,3 +81,4 @@ Mutations are injected with known ground-truth labels, then the platform is scor
 3. **Auth change** → `authentication` (security regression, not a locator fix).
 4. **Timing issue** → `timing` (wait/race, not a product bug).
 5. **Flaky tests** (alternating pass/fail) → detected by history scoring, not healed.
+
