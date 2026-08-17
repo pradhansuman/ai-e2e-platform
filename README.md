@@ -459,7 +459,7 @@ alembic revision --autogenerate -m "message"   # create a new migration
 
 Verified end-to-end: discovery → generation → execution → failure
 classification → self-healing → re-execution (live against saucedemo.com,
-demoqa.com, and a local app; **115 unit tests passing**, CI green).
+demoqa.com, and a local app; **123 unit tests passing**, CI green).
 
 - A deliberately failing assertion was classified `product_defect`.
 - A broken locator was classified `automation_defect`, healed to a stable
