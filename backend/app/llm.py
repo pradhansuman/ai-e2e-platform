@@ -72,6 +72,16 @@ def _openrouter_headers() -> dict[str, str]:
     }
 
 
+def _openrouter_models() -> list[str]:
+    """Ordered, de-duplicated list of OpenRouter free models to fail over to."""
+    models = [settings.openrouter_model]
+    for m in (settings.openrouter_fallback_models or "").split(","):
+        m = m.strip()
+        if m and m not in models:
+            models.append(m)
+    return models
+
+
 def _make_openai_compat(
     model: str,
     api_key: str,
@@ -141,38 +151,45 @@ def get_llm_candidates() -> list[tuple[str, BaseChatModel]]:
     """
     _configure_langsmith()
     candidates: list[tuple[str, BaseChatModel]] = []
-    providers: list[tuple[str, str | None, Any]] = [
-        (
-            "gemini",
-            settings.gemini_api_key,
-            lambda: _make_openai_compat(
-                settings.gemini_model, settings.gemini_api_key or "", settings.gemini_base_url
-            ),
-        ),
-        (
-            "groq",
-            settings.groq_api_key,
-            lambda: _make_openai_compat(
-                settings.groq_model, settings.groq_api_key or "", settings.groq_base_url
-            ),
-        ),
-        (
-            "openrouter",
-            settings.openrouter_api_key,
-            lambda: _make_openai_compat(
-                settings.openrouter_model,
-                settings.openrouter_api_key or "",
-                settings.openrouter_base_url,
-                headers=_openrouter_headers(),
-            ),
-        ),
-    ]
-    for name, key, build in providers:
-        if not key:
-            continue
-        if _is_exhausted(name):
-            continue
+
+    def _add(name: str, key: str | None, build: Any) -> None:
+        if not key or _is_exhausted(name):
+            return
         candidates.append((name, build()))
+
+    _add(
+        "gemini",
+        settings.gemini_api_key,
+        lambda: _make_openai_compat(
+            settings.gemini_model, settings.gemini_api_key or "", settings.gemini_base_url
+        ),
+    )
+    _add(
+        "groq",
+        settings.groq_api_key,
+        lambda: _make_openai_compat(
+            settings.groq_model, settings.groq_api_key or "", settings.groq_base_url
+        ),
+    )
+
+    # OpenRouter: one candidate per free model (model-level failover). The
+    # account-level daily cap is tracked separately under the "openrouter" key.
+    if settings.openrouter_api_key:
+        for slug in _openrouter_models():
+            name = f"openrouter:{slug}"
+            if _is_exhausted("openrouter") or _is_exhausted(name):
+                continue
+            candidates.append(
+                (
+                    name,
+                    _make_openai_compat(
+                        slug,
+                        settings.openrouter_api_key,
+                        settings.openrouter_base_url,
+                        headers=_openrouter_headers(),
+                    ),
+                )
+            )
 
     if settings.anthropic_api_key:
         from langchain.chat_models import init_chat_model
@@ -232,6 +249,20 @@ def is_rate_limit_error(exc: Exception) -> bool:
     except Exception:  # noqa: BLE001
         pass
     return False
+
+
+def _handle_rate_limit(name: str, exc: Exception) -> None:
+    """Mark the failing candidate exhausted.
+
+    When an OpenRouter model hits the account-level daily cap, mark the whole
+    ``openrouter`` group exhausted so the remaining models are skipped too.
+    """
+    _mark_exhausted(name)
+    msg = str(exc).lower()
+    if name.startswith("openrouter:") and (
+        "free-models-per-day" in msg or "limit_source" in msg
+    ):
+        _mark_exhausted("openrouter")
 
 
 # --------------------------------------------------------------------------- #
@@ -408,7 +439,7 @@ def structured_invoke(
         except Exception as exc:  # noqa: BLE001
             last_err = exc
             if is_rate_limit_error(exc):
-                _mark_exhausted(name)
+                _handle_rate_limit(name, exc)
     if last_err is not None:
         raise last_err
     raise RuntimeError("No LLM candidates available (no API keys configured)")

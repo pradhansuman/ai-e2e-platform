@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     openrouter_api_key: str | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "google/gemma-4-26b-a4b-it:free"
+    # Comma-separated extra free models to fail over to (in preference order)
+    # when the primary model is rate-limited / unavailable.
+    openrouter_fallback_models: str = (
+        "qwen/qwen-2.5-72b-instruct:free,meta-llama/llama-3.3-70b-instruct:free"
+    )
 
     # Google Gemini (via the OpenAI-compatible endpoint, so we reuse ChatOpenAI
     # and get native function-calling / structured output).
