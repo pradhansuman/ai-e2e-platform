@@ -16,13 +16,13 @@
 | 2 | Benchmark 6 apps / 500+ tests / 4 mutation classes / 9 metrics | ✅ (deterministic baseline) |
 | 3 | Control-group baseline: Human / Playwright / LLM / platform + AI-QE Score | ✅ (estimates for A–C, measured platform; LLM path measured via Mistral) |
 | 4 | Mutation-testing benchmark (fault-detection power = AI E2E Mutation Score) | ✅ full 10-class corpus + mutation score |
-| 5 | Change-aware regression intelligence (git → affected tests → risk → minimal set) | ⬜ |
-| 6 | Application knowledge graph (requirement ↔ API ↔ component ↔ journey ↔ test ↔ defect ↔ incident) | ⬜ |
-| 7 | Production → test intelligence (logs/traces/analytics → risk → generate → validate) | ⬜ |
-| 8 | Continuous autonomous QE loop (observe → risk → design → select → generate → execute → diagnose → heal → learn) | ⬜ |
-| 9 | Enterprise platform (multi-tenancy, RBAC, SSO, audit, cost controls, model routing, integrations) | ⬜ |
+| 5 | Change-aware regression intelligence (git → affected tests → risk → minimal set) | ✅ `app/intelligence/change_analysis.py` |
+| 6 | Application knowledge graph (requirement ↔ API ↔ component ↔ journey ↔ test ↔ defect ↔ incident) | ✅ `app/intelligence/quality_graph.py` |
+| 7 | Production → test intelligence (logs/traffic → risk → generate) | ✅ `app/intelligence/production_intelligence.py` |
+| 8 | Continuous autonomous QE loop (observe → risk → select → execute → diagnose → heal → learn) | 🔶 decision layer done (`continuous_qe.py`); execution delegates to the LangGraph pipeline |
+| 9 | Enterprise platform (multi-tenancy, RBAC, SSO, audit, limits, integrations) | 🔶 RBAC + tenancy + audit scaffold (`enterprise.py`); SSO/integrations pending |
 | 10 | Public benchmark + research (reproducible `ai-e2e-benchmark` repo) | ✅ published at github.com/pradhansuman/ai-e2e-benchmark |
-| 11 | Product / SaaS | ⬜ |
+| 11 | Product / SaaS | ⬜ go-to-market (not code) |
 
 ## The critical next move
 
