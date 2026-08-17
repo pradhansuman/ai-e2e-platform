@@ -52,6 +52,17 @@ class TestState(TypedDict, total=False):
     requirements: list[dict[str, Any]]
     requirement_gaps: list[dict[str, Any]]
 
+    # -- Understanding (Requirements / Risks / User Journeys) -------------
+    understanding: dict[str, Any]
+    risks: list[dict[str, Any]]
+    user_journeys: list[dict[str, Any]]
+
+    # -- Test intelligence ------------------------------------------------
+    coverage_analysis: dict[str, Any]
+
+    # -- Learning ---------------------------------------------------------
+    learnings: list[dict[str, Any]]
+
     # -- Generation ------------------------------------------------------
     test_scenarios: list[dict[str, Any]]
     test_cases: list[dict[str, Any]]  # each conforms to TestCase schema
@@ -96,6 +107,11 @@ def initial_state(objective: str, application: dict[str, Any], run_id: str) -> T
         components=[],
         requirements=[],
         requirement_gaps=[],
+        understanding={},
+        risks=[],
+        user_journeys=[],
+        coverage_analysis={},
+        learnings=[],
         test_scenarios=[],
         test_cases=[],
         execution_results=[],

@@ -15,8 +15,10 @@ from ..agents.discovery import discover_application_model
 from ..agents.flakiness import detect_flakiness
 from ..agents.generator import fallback_generate_tests, generate_tests
 from ..agents.healer import apply_healing, heuristic_heal, propose_healing
+from ..agents.intelligence import analyze_test_coverage, fallback_coverage
 from ..agents.prioritizer import prioritize_tests
 from ..agents.requirements import analyze_requirements
+from ..agents.understanding import fallback_understand, understand_application
 from ..config import settings
 from ..executor import PlaywrightExecutor
 from ..security import mask_secrets, sanitize_untrusted_content
@@ -67,21 +69,42 @@ async def discover_node(state: TestState) -> TestState:
 
 
 # --------------------------------------------------------------------------- #
-# ANALYZE REQUIREMENTS
+# ANALYZE REQUIREMENTS (Requirements | Risks | User Journeys)
 # --------------------------------------------------------------------------- #
 async def analyze_requirements_node(state: TestState) -> TestState:
+    """Derive the three parallel artifacts from the Application Model:
+
+    requirements (testable rules), risks, and user journeys — plus a gap
+    analysis of any user-provided requirements.
+    """
+    # 1) User-provided requirement gap analysis (existing behaviour).
     requirements = state.get("requirements", [])
-    if not requirements:
-        state["requirement_gaps"] = []
-        return state
+    if requirements:
+        try:
+            analysis = await asyncio.to_thread(analyze_requirements, requirements)
+            state["requirement_gaps"] = analysis.gaps
+            state["_requirement_analysis"] = analysis.model_dump()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Requirement analysis failed: %s", exc)
+            state["requirement_gaps"] = []
+
+    # 2) Model-driven understanding → requirements + risks + user journeys.
+    model = state.get("application_model", {})
     try:
-        analysis = await asyncio.to_thread(analyze_requirements, requirements)
-        state["requirement_gaps"] = analysis.gaps
-        # Attach enriched requirement context for the generator.
-        state["_requirement_analysis"] = analysis.model_dump()
+        understanding = await asyncio.to_thread(understand_application, model)
+        understanding_dict = understanding.model_dump()
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Requirement analysis failed: %s", exc)
-        state["requirement_gaps"] = []
+        logger.warning("LLM understanding failed (%s); using deterministic fallback", exc)
+        understanding_dict = fallback_understand(model).model_dump()
+
+    state["understanding"] = understanding_dict
+    state["risks"] = understanding_dict.get("risks", [])
+    state["user_journeys"] = understanding_dict.get("user_journeys", [])
+
+    # Enrich the generator context with the model-derived requirements.
+    base = dict(state.get("_requirement_analysis", {}) or {})
+    base["understanding"] = understanding_dict
+    state["_requirement_analysis"] = base
     return state
 
 
@@ -90,12 +113,13 @@ async def analyze_requirements_node(state: TestState) -> TestState:
 # --------------------------------------------------------------------------- #
 async def generate_tests_node(state: TestState) -> TestState:
     existing = state.get("test_cases", [])
+    context = state.get("_requirement_analysis", {}) or state.get("understanding", {})
     cases: list[dict[str, Any]] = []
     try:
         suite = await asyncio.to_thread(
             generate_tests,
             application_model=state.get("application_model", {}),
-            requirements=state.get("_requirement_analysis", {}),
+            requirements=context,
             existing=existing,
         )
         cases = [c.model_dump() for c in suite.test_cases]
@@ -112,6 +136,24 @@ async def generate_tests_node(state: TestState) -> TestState:
     state["test_scenarios"] = cases
     state["test_cases"] = cases
     state["status"] = "generated"
+    return state
+
+
+# --------------------------------------------------------------------------- #
+# TEST INTELLIGENCE
+# --------------------------------------------------------------------------- #
+async def test_intelligence_node(state: TestState) -> TestState:
+    """Analyze the generated suite against the understanding (coverage gaps)."""
+    tests = state.get("test_cases", [])
+    understanding = state.get("understanding", {})
+    try:
+        coverage = await asyncio.to_thread(analyze_test_coverage, tests, understanding)
+        coverage_dict = coverage.model_dump()
+    except Exception as exc:  # noqa: BLE001 - LLM may be unavailable
+        logger.warning("LLM coverage analysis failed (%s); using deterministic fallback", exc)
+        coverage_dict = fallback_coverage(tests, understanding).model_dump()
+
+    state["coverage_analysis"] = coverage_dict
     return state
 
 
@@ -358,4 +400,94 @@ async def report_node(state: TestState) -> TestState:
         "healing_events": state.get("healing_events", []),
     }
     return state
+
+
+# --------------------------------------------------------------------------- #
+# LEARN / IMPROVE (closes the loop → next run)
+# --------------------------------------------------------------------------- #
+async def learn_node(state: TestState) -> TestState:
+    """Persist learnings, compute quality scores, and push eval to LangSmith.
+
+    This is the LANGSMITH + LEARN/IMPROVE step: durable knowledge (healed
+    selectors, failure patterns, pass/fail outcomes) is stored for retrieval
+    by future runs, and the run is scored.
+    """
+    learnings: list[dict[str, Any]] = []
+    for event in state.get("healing_events", []):
+        learnings.append({"kind": "healing", **event})
+    for entry in state.get("failures", []):
+        if not isinstance(entry, dict):
+            continue
+        rc = entry.get("root_cause", {}) or {}
+        if rc.get("classification"):
+            learnings.append(
+                {
+                    "kind": "failure_pattern",
+                    "test_id": (entry.get("failure") or {}).get("test_id"),
+                    "classification": rc.get("classification"),
+                    "root_cause": rc.get("root_cause"),
+                }
+            )
+    for r in state.get("execution_results", []):
+        learnings.append(
+            {
+                "kind": "outcome",
+                "test_id": r.get("test_id"),
+                "status": r.get("status"),
+                "duration_ms": r.get("duration_ms"),
+            }
+        )
+    state["learnings"] = learnings
+
+    # Persist knowledge to the vector store (best-effort; in-memory fallback).
+    try:
+        from ..services.vector_store import VectorStore
+
+        store = VectorStore(settings.vector_store_url)
+        for item in learnings:
+            store.upsert("test_knowledge", item)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Skipping knowledge persistence (%s)", exc)
+
+    state["ai_quality"] = _compute_quality(state)
+    _langsmith_eval(state)
+    return state
+
+
+def _compute_quality(state: TestState) -> dict[str, Any]:
+    results = state.get("execution_results", [])
+    total = len(results) or 1
+    passed = sum(1 for r in results if r.get("status") == "passed")
+    coverage = state.get("coverage_analysis", {}) or {}
+    uncovered = len(coverage.get("uncovered_risks", [])) + len(
+        coverage.get("uncovered_journeys", [])
+    )
+    denom = (len(state.get("risks", [])) + len(state.get("user_journeys", []))) or 1
+    return {
+        "pass_rate": round(passed / total, 4),
+        "healing_success": len(state.get("healing_events", [])),
+        "coverage_rate": round(max(0.0, 1 - uncovered / denom), 4),
+        "test_count": len(results),
+    }
+
+
+def _langsmith_eval(state: TestState) -> None:
+    """Best-effort push of the run summary to LangSmith (no-op without a key)."""
+    if not (settings.langsmith_tracing and settings.langsmith_api_key):
+        return
+    try:
+        from langsmith import Client
+
+        client = Client()
+        client.create_run(
+            name="ai-e2e-platform-run",
+            run_type="chain",
+            inputs={"objective": state.get("objective"), "run_id": state.get("run_id")},
+            outputs={
+                "final_result": state.get("final_result", {}),
+                "ai_quality": state.get("ai_quality", {}),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("LangSmith eval push skipped (%s)", exc)
 

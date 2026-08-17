@@ -76,6 +76,7 @@ def build_workflow():
     g.add_node("discover", nodes.discover_node)
     g.add_node("analyze_requirements", nodes.analyze_requirements_node)
     g.add_node("generate_tests", nodes.generate_tests_node)
+    g.add_node("test_intelligence", nodes.test_intelligence_node)
     g.add_node("prioritize", nodes.prioritize_node)
     g.add_node("execute", nodes.execute_node)
     g.add_node("observe", nodes.observe_node)
@@ -85,12 +86,14 @@ def build_workflow():
     g.add_node("retest", nodes.retest_node)
     g.add_node("validate", nodes.validate_node)
     g.add_node("report", nodes.report_node)
+    g.add_node("learn", nodes.learn_node)
 
     g.set_entry_point("ingest")
     g.add_edge("ingest", "discover")
     g.add_edge("discover", "analyze_requirements")
     g.add_edge("analyze_requirements", "generate_tests")
-    g.add_edge("generate_tests", "prioritize")
+    g.add_edge("generate_tests", "test_intelligence")
+    g.add_edge("test_intelligence", "prioritize")
     g.add_edge("prioritize", "execute")
     g.add_edge("execute", "observe")
 
@@ -125,7 +128,8 @@ def build_workflow():
     )
 
     g.add_edge("validate", "report")
-    g.add_edge("report", END)
+    g.add_edge("report", "learn")
+    g.add_edge("learn", END)
 
     return g.compile()
 
@@ -146,6 +150,7 @@ def build_approval_workflow():
     g.add_node("repair", nodes.repair_node)
     g.add_node("validate", nodes.validate_node)
     g.add_node("report", nodes.report_node)
+    g.add_node("learn", nodes.learn_node)
 
     g.set_entry_point("approve")
 
@@ -176,7 +181,8 @@ def build_approval_workflow():
         {"retest": "retest", "report": "report", END: END},
     )
     g.add_edge("validate", "report")
-    g.add_edge("report", END)
+    g.add_edge("report", "learn")
+    g.add_edge("learn", END)
 
     return g.compile()
 

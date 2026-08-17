@@ -43,8 +43,12 @@ step so it keeps working even when the LLM is rate-limited or down.
   areas).
 - **Requirements analysis** — turns user stories into testable business rules
   and flags missing/ambiguous/contradictory requirements.
+- **Application understanding** — distills the app model into three parallel
+  artifacts: testable **requirements**, **risks**, and **user journeys**.
 - **AI test generation** — writes a comprehensive suite (happy paths,
   negative, boundary, validation, auth, security, regression, …).
+- **Test intelligence** — measures coverage against risks/journeys and flags
+  uncovered areas and weak tests.
 - **Risk-based prioritization** — scores tests P0–P3.
 - **Browser execution** — drives Chromium/Firefox/WebKit via Playwright through
   an **allow-listed** set of actions (the LLM can never inject arbitrary JS).
@@ -63,29 +67,41 @@ step so it keeps working even when the LLM is rate-limited or down.
   `viewer`).
 - **Async worker queue** — non-blocking `POST /runs`; poll `GET /runs/{id}`.
 - **Observability** — optional LangSmith tracing + an evaluation harness.
+- **Learn/improve loop** — persists healed selectors, failure patterns, and
+  pass/fail outcomes so every run improves the next.
 
 ## How it works
 
-```
-Give URL → Discover → Understand → Model → Generate → Prioritize → Execute →
-Capture Evidence → Detect Failure → Diagnose → Controlled Healing → Retest →
-Validate → Report → Trace & Evaluate
-```
-
-Implemented as a **13-node LangGraph state machine**:
+The pipeline follows this flowchart:
 
 ```
-ingest → discover → analyze_requirements → generate_tests → prioritize
-        → execute → observe ──(failed)──→ analyze_failure
-                              │                 │
-                              │        (automation_defect)
-                              │                 ▼
-                              │            diagnose → repair → [human approval]
-                              │                          │
-                              └──(passed)──→ validate ←── retest ←─┘
-                                                      │
-                                                      ▼
-                                                   report
+APPLICATION → UNDERSTANDING → APPLICATION MODEL
+            → [ Requirements | Risks | User Journeys ]
+            → TEST DESIGN → TEST INTELLIGENCE → RISK-BASED SELECT
+            → PLAYWRIGHT → EXECUTE → EVIDENCE
+            → AI DIAGNOSIS ── PRODUCT BUG ──→ REPORT
+                         └─ TEST BUG ──→ HEAL → RETEST
+            → VALIDATE → LANGSMITH → LEARN/IMPROVE → NEXT RUN
+```
+
+Implemented as a **15-node LangGraph state machine** (implementation node names
+in parentheses):
+
+```
+ingest (APPLICATION)
+  → discover (UNDERSTANDING → APPLICATION MODEL)
+  → analyze_requirements (Requirements | Risks | User Journeys)
+  → generate_tests (TEST DESIGN)
+  → test_intelligence (TEST INTELLIGENCE)
+  → prioritize (RISK-BASED SELECT)
+  → execute (PLAYWRIGHT → EXECUTE) → observe (EVIDENCE)
+        │
+        └─(failed)─→ analyze_failure (AI DIAGNOSIS)
+                       ├─ product_defect ──→ report
+                       └─ automation_defect ──→ diagnose → repair (HEAL)
+                                                 → [human approval] → retest → execute (loop)
+        └─(passed)─→ validate
+                       → report → learn (LANGSMITH + LEARN/IMPROVE) → END
 ```
 
 Every AI step has a **deterministic fallback**, so the platform never hard-fails
@@ -94,7 +110,9 @@ on a free-tier LLM:
 | Step | LLM path | Fallback |
 |---|---|---|
 | Discovery | `discover_application_model` | raw crawl data |
+| Understanding | `understand_application` | `fallback_understand` |
 | Test generation | `generate_tests` | `fallback_generate_tests` (smoke/form/action) |
+| Coverage | `analyze_test_coverage` | `fallback_coverage` |
 | Failure analysis | `analyze_failure_evidence` | `heuristic_classify` |
 | Self-healing | `propose_healing` | `heuristic_heal` |
 

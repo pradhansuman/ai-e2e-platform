@@ -50,6 +50,44 @@ class RequirementAnalysis(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Understanding (Requirements / Risks / User Journeys)
+# --------------------------------------------------------------------------- #
+class Risk(BaseModel):
+    risk_id: str
+    area: str
+    description: str
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+    mitigation: str | None = None
+
+
+class UserJourney(BaseModel):
+    journey_id: str
+    name: str
+    steps: list[str] = Field(default_factory=list)
+    entry_point: str | None = None
+
+
+class Understanding(BaseModel):
+    """The three parallel artifacts derived from the Application Model."""
+
+    requirements: list[str] = Field(default_factory=list)
+    risks: list[Risk] = Field(default_factory=list)
+    user_journeys: list[UserJourney] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Test intelligence / coverage
+# --------------------------------------------------------------------------- #
+class CoverageAnalysis(BaseModel):
+    covered_risks: list[str] = Field(default_factory=list)
+    uncovered_risks: list[str] = Field(default_factory=list)
+    covered_journeys: list[str] = Field(default_factory=list)
+    uncovered_journeys: list[str] = Field(default_factory=list)
+    missing_tests: list[str] = Field(default_factory=list)
+    weak_tests: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
 # Test generation
 # --------------------------------------------------------------------------- #
 class TestStep(BaseModel):
