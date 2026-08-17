@@ -27,7 +27,7 @@ _UNITS = {
     "flaky_detection_accuracy_pct": "%",
     "human_intervention_pct": "%",
     "avg_diagnosis_time_sec": " sec",
-    "cost_per_test_usd": "$",
+    "cost_per_test_usd": "",
 }
 
 
@@ -35,7 +35,10 @@ def render_text(result: BenchResult) -> str:
     lines = ["AI E2E Platform — Benchmark Results", "=" * 40]
     for key, label in _METRIC_LABELS.items():
         unit = _UNITS[key]
-        lines.append(f"{label:<26} {result.metrics[key]}{unit}")
+        if key == "cost_per_test_usd":
+            lines.append(f"{label:<26} ${result.metrics[key]}")
+        else:
+            lines.append(f"{label:<26} {result.metrics[key]}{unit}")
     score, _dims = compute_ai_qe_score(result.metrics)
     lines.append(f"{'AI-QE Score':<26} {score}/100")
     lines.append("")
@@ -63,7 +66,10 @@ def render_markdown(result: BenchResult) -> str:
     out.append("|---|---|")
     for key, label in _METRIC_LABELS.items():
         unit = _UNITS[key]
-        out.append(f"| {label} | {m[key]}{unit} |")
+        if key == "cost_per_test_usd":
+            out.append(f"| {label} | ${m[key]} |")
+        else:
+            out.append(f"| {label} | {m[key]}{unit} |")
     score, dims = compute_ai_qe_score(m)
     out.append(f"| **AI-QE Score** | **{score}/100** |")
     out.append("")

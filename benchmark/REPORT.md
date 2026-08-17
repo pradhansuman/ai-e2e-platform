@@ -15,7 +15,7 @@
 | Flaky detection accuracy | 80.0% |
 | Human intervention | 20.4% |
 | Avg diagnosis time | 2.81 sec |
-| Cost per test | 0.0012$ |
+| Cost per test | $0.0012 |
 | **AI-QE Score** | **78.7/100** |
 
 ## AI-QE Score breakdown
