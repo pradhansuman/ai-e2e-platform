@@ -53,3 +53,16 @@ def test_flowchart_nodes_are_registered():
         "learn",
     ):
         assert expected in node_names, f"missing node {expected}"
+
+
+def test_prioritize_node_caps_to_max_tests(monkeypatch):
+    import asyncio
+    from app.graph.nodes import prioritize_node
+    from app.config import settings
+    monkeypatch.setattr(settings, "max_tests", 3)
+    state = {"test_cases": [
+        {"test_id": f"T{i}", "risk": "high", "priority": "P0"} for i in range(10)
+    ]}
+    out = asyncio.run(prioritize_node(state))
+    assert len(out["test_cases"]) == 3
+    assert [t["test_id"] for t in out["test_cases"]][:2] == ["T0", "T1"]

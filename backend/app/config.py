@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     mistral_base_url: str = "https://api.mistral.ai/v1"
 
     # --- LLM resilience (free-tier models are often rate-limited) ---
-    llm_max_retries: int = 4
+    llm_max_retries: int = 2
     llm_timeout: int = 180
 
     # ------------------------------------------------------------ LangSmith
@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     # ------------------------------------------------------ Workflow limits
     max_retries: int = 3
     max_heal_retries: int = 2
+    # Cap on the number of tests executed per run (risk-based, highest priority
+    # first). Prevents a comprehensive AI suite from exhausting the free-tier
+    # LLM budget on failure analysis / healing.
+    max_tests: int = 10
     # When True, self-healing changes are blocked pending human approval.
     human_approval_required: bool = True
     # Background workers draining the run queue (serial by default to avoid
