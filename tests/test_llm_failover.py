@@ -28,6 +28,8 @@ def test_openrouter_models_dedups_and_orders(monkeypatch):
 def test_get_llm_candidates_filters_unset_and_orders(monkeypatch):
     monkeypatch.setattr(llm.settings, "gemini_api_key", "g")
     monkeypatch.setattr(llm.settings, "groq_api_key", None)
+    monkeypatch.setattr(llm.settings, "cerebras_api_key", None)
+    monkeypatch.setattr(llm.settings, "mistral_api_key", None)
     monkeypatch.setattr(llm.settings, "openrouter_api_key", "o")
     monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
     monkeypatch.setattr(llm.settings, "openai_api_key", None)
@@ -41,6 +43,8 @@ def test_get_llm_candidates_filters_unset_and_orders(monkeypatch):
 def test_exhausted_provider_is_dropped_from_candidates(monkeypatch):
     monkeypatch.setattr(llm.settings, "gemini_api_key", "g")
     monkeypatch.setattr(llm.settings, "groq_api_key", None)
+    monkeypatch.setattr(llm.settings, "cerebras_api_key", None)
+    monkeypatch.setattr(llm.settings, "mistral_api_key", None)
     monkeypatch.setattr(llm.settings, "openrouter_api_key", "o")
     monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
     monkeypatch.setattr(llm.settings, "openai_api_key", None)
@@ -55,6 +59,8 @@ def test_exhausted_provider_is_dropped_from_candidates(monkeypatch):
 def test_account_exhaustion_drops_all_openrouter_models(monkeypatch):
     monkeypatch.setattr(llm.settings, "gemini_api_key", None)
     monkeypatch.setattr(llm.settings, "groq_api_key", None)
+    monkeypatch.setattr(llm.settings, "cerebras_api_key", None)
+    monkeypatch.setattr(llm.settings, "mistral_api_key", None)
     monkeypatch.setattr(llm.settings, "openrouter_api_key", "o")
     monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
     monkeypatch.setattr(llm.settings, "openai_api_key", None)
