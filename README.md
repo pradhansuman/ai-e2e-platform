@@ -361,7 +361,7 @@ GROQ_API_KEY=***
 # OpenRouter (many free models; ~50 free req/day)
 OPENROUTER_API_KEY=***
 OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
-OPENROUTER_FALLBACK_MODELS=qwen/qwen-2.5-72b-instruct:free
+OPENROUTER_FALLBACK_MODELS=
 ```
 
 With `LLM_PROVIDER=auto` (default) the failover order is
