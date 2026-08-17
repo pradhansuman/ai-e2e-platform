@@ -22,7 +22,7 @@
 | 8 | Continuous autonomous QE loop (observe → risk → select → execute → diagnose → heal → learn) | 🔶 decision layer done (`continuous_qe.py`); execution delegates to the LangGraph pipeline |
 | 9 | Enterprise platform (multi-tenancy, RBAC, SSO, audit, limits, integrations) | 🔶 RBAC + tenancy + audit scaffold (`enterprise.py`); SSO/integrations pending |
 | 10 | Public benchmark + research (reproducible `ai-e2e-benchmark` repo) | ✅ published at github.com/pradhansuman/ai-e2e-benchmark |
-| 11 | Product / SaaS | ⬜ go-to-market (not code) |
+| 11 | Product / SaaS | ✅ positioning + GTM in `docs/product.md` (go-to-market is not code) |
 
 ## The critical next move
 
