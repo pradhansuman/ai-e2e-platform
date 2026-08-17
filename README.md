@@ -19,6 +19,7 @@ step so it keeps working even when the LLM is rate-limited or down.
 ## Table of contents
 
 - [What it does](#what-it-does)
+- [Architecture](#architecture)
 - [How it works](#how-it-works)
 - [Repository layout](#repository-layout)
 - [Requirements](#requirements)
@@ -69,6 +70,76 @@ step so it keeps working even when the LLM is rate-limited or down.
 - **Observability** — optional LangSmith tracing + an evaluation harness.
 - **Learn/improve loop** — persists healed selectors, failure patterns, and
   pass/fail outcomes so every run improves the next.
+
+## Architecture
+
+### System components
+
+```mermaid
+flowchart LR
+    subgraph Clients
+        CLI["CLI (app.cli)"]
+        REST["REST API"]
+        UI["Dashboard (frontend/)"]
+    end
+    subgraph Backend["FastAPI + worker"]
+        API["API routes"]
+        WORKER["Worker queue (async)"]
+        GRAPH["LangGraph pipeline<br/>(15 nodes)"]
+        AGENTS["AI agents"]
+        EXEC["Playwright executor"]
+    end
+    subgraph LLMs["LLM providers (failover)"]
+        GEMINI["Gemini"]
+        GROQ["Groq"]
+        OPENROUTER["OpenRouter<br/>(multi :free models)"]
+    end
+    subgraph Data["Data"]
+        DB[("Postgres / SQLite")]
+        VEC[("Qdrant vector store")]
+    end
+    subgraph Obs["Observability"]
+        LS["LangSmith"]
+    end
+
+    CLI --> API
+    REST --> API
+    UI --> API
+    API --> WORKER
+    WORKER --> GRAPH
+    GRAPH --> AGENTS
+    GRAPH --> EXEC
+    EXEC -->|"browser"| TARGET["Target web app"]
+    AGENTS -->|"failover"| GEMINI
+    AGENTS -->|"failover"| GROQ
+    AGENTS -->|"failover"| OPENROUTER
+    GRAPH --> DB
+    GRAPH --> VEC
+    AGENTS --> LS
+```
+
+### Pipeline graph (LangGraph state machine)
+
+```mermaid
+flowchart TD
+    INGEST["ingest<br/>(APPLICATION)"] --> DISCOVER["discover<br/>(UNDERSTANDING + APPLICATION MODEL)"]
+    DISCOVER --> UNDERSTAND["analyze_requirements<br/>(Requirements / Risks / User Journeys)"]
+    UNDERSTAND --> GENERATE["generate_tests<br/>(TEST DESIGN)"]
+    GENERATE --> INTEL["test_intelligence<br/>(TEST INTELLIGENCE)"]
+    INTEL --> PRIORITIZE["prioritize<br/>(RISK-BASED SELECT)"]
+    PRIORITIZE --> EXECUTE["execute<br/>(PLAYWRIGHT + EXECUTE)"]
+    EXECUTE --> OBSERVE["observe<br/>(EVIDENCE)"]
+    OBSERVE --> DIAG{"analyze_failure<br/>(AI DIAGNOSIS)"}
+    DIAG -->|"product_defect"| REPORT["report<br/>(PRODUCT BUG)"]
+    DIAG -->|"automation_defect"| HEAL["diagnose + repair<br/>(TEST BUG + HEAL)"]
+    DIAG -->|"passed"| VALIDATE["validate<br/>(VALIDATE)"]
+    HEAL -->|"human approval"| RETEST["retest<br/>(RETEST)"]
+    RETEST --> EXECUTE
+    VALIDATE --> REPORT
+    REPORT --> LEARN["learn<br/>(LANGSMITH + LEARN/IMPROVE)"]
+    LEARN --> NEXT(["NEXT RUN"])
+    NEXT -.->|"persisted knowledge"| PRIORITIZE
+```
 
 ## How it works
 
