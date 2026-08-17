@@ -120,12 +120,15 @@ def render_markdown(result: BenchResult) -> str:
         "is scored on whether it both catches **and** correctly diagnoses each one."
     )
     out.append("")
-    out.append("| Mutation | Class | Count |")
-    out.append("|---|---|---|")
-    for key, count in sorted(c["mutation_breakdown"].items()):
+    out.append("| Mutation | Class | Injected | Detected | Accuracy |")
+    out.append("|---|---|---|---|---|")
+    for key in sorted(c["mutation_breakdown"]):
         label = key.replace("_", " ").capitalize()
         cls = MUTATIONS[key]["classification"]
-        out.append(f"| {label} | `{cls}` | {count} |")
+        injected = c["mutation_breakdown"][key]
+        detected = c["mutation_detected_breakdown"].get(key, 0)
+        acc = detected / injected * 100 if injected else 0.0
+        out.append(f"| {label} | `{cls}` | {injected} | {detected} | {acc:.0f}% |")
     out.append("")
     out.append("## Method")
     out.append("")

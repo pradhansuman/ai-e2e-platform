@@ -81,3 +81,17 @@ def test_comparison_has_four_rows_and_score():
     # markdown renders without error and includes the score row
     md = render_comparison_markdown(rows)
     assert "AI-QE Score" in md
+
+
+def test_mutation_breakdown_is_consistent():
+    r = run_benchmark(Params(total_tests=200, seed=5))
+    c = r.counts
+    # breakdown sums to the injected/detected totals
+    assert sum(c["mutation_breakdown"].values()) == c["mutations_injected"]
+    assert sum(c["mutation_detected_breakdown"].values()) == c["mutations_detected"]
+    # flaky is excluded from the mutation (defect-detection) score
+    assert "flaky" not in c["mutation_breakdown"]
+    assert c["mutations_injected"] > 0
+    # defect_detection_pct == detected / injected
+    expected = round(c["mutations_detected"] / c["mutations_injected"] * 100, 1)
+    assert r.metrics["defect_detection_pct"] == expected

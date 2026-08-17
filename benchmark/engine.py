@@ -296,7 +296,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
         "generated": 0, "accurate_tests": 0,
         "failures": 0, "deterministic_failures": 0,
         "root_cause_correct": 0,
-        "mutations_injected": 0, "mutations_detected": 0, "mutation_breakdown": {},
+        "mutations_injected": 0, "mutations_detected": 0, "mutation_breakdown": {}, "mutation_detected_breakdown": {},
         "heal_attempts": 0, "heal_success": 0, "false_heals": 0,
         "flaky_injected": 0, "flaky_detected": 0,
         "interventions": 0,
@@ -359,8 +359,10 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
                 if mutation in DEFECT_MUTATIONS:
                     c["mutations_injected"] += 1
                     c["mutation_breakdown"][mutation] = c["mutation_breakdown"].get(mutation, 0) + 1
-                    if rc["classification"] == _ground_truth_label(mutation):
+                    detected = rc["classification"] == _ground_truth_label(mutation)
+                    if detected:
                         c["mutations_detected"] += 1
+                        c["mutation_detected_breakdown"][mutation] = c["mutation_detected_breakdown"].get(mutation, 0) + 1
 
                 # Self-healing for healable automation defects (REAL heuristic).
                 if rc["classification"] == "automation_defect" and mutation in HEALABLE_MUTATIONS:
@@ -442,6 +444,7 @@ def run_benchmark(params: Params | None = None) -> BenchResult:
             "mutations_injected": c["mutations_injected"],
             "mutations_detected": c["mutations_detected"],
             "mutation_breakdown": dict(c["mutation_breakdown"]),
+            "mutation_detected_breakdown": dict(c["mutation_detected_breakdown"]),
             "heal_attempts": c["heal_attempts"],
             "heal_success": c["heal_success"],
             "false_heals": c["false_heals"],

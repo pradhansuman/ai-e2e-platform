@@ -60,17 +60,17 @@
 
 Ten injected mutation classes with known ground-truth labels; the platform is scored on whether it both catches **and** correctly diagnoses each one.
 
-| Mutation | Class | Count |
-|---|---|---|
-| Api response change | `product_defect` | 26 |
-| Auth change | `authentication` | 19 |
-| Broken locator | `automation_defect` | 59 |
-| Business rule change | `product_defect` | 32 |
-| Calculation change | `product_defect` | 23 |
-| Requirement change | `automation_defect` | 28 |
-| Timing issue | `timing` | 46 |
-| Validation removed | `product_defect` | 33 |
-| Value change | `product_defect` | 57 |
+| Mutation | Class | Injected | Detected | Accuracy |
+|---|---|---|---|---|
+| Api response change | `product_defect` | 26 | 23 | 88% |
+| Auth change | `authentication` | 19 | 17 | 89% |
+| Broken locator | `automation_defect` | 59 | 53 | 90% |
+| Business rule change | `product_defect` | 32 | 29 | 91% |
+| Calculation change | `product_defect` | 23 | 22 | 96% |
+| Requirement change | `automation_defect` | 28 | 27 | 96% |
+| Timing issue | `timing` | 46 | 43 | 93% |
+| Validation removed | `product_defect` | 33 | 31 | 94% |
+| Value change | `product_defect` | 57 | 53 | 93% |
 
 ## Method
 
