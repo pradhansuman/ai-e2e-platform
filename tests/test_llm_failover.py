@@ -113,3 +113,27 @@ def test_structured_invoke_raises_when_all_fail(monkeypatch):
         assert False, "expected RuntimeError"
     except RuntimeError as e:
         assert "boom" in str(e)
+
+
+def test_get_llm_candidates_includes_cerebras_and_mistral(monkeypatch):
+    monkeypatch.setattr(llm.settings, "gemini_api_key", None)
+    monkeypatch.setattr(llm.settings, "groq_api_key", None)
+    monkeypatch.setattr(llm.settings, "cerebras_api_key", "c")
+    monkeypatch.setattr(llm.settings, "mistral_api_key", "m")
+    monkeypatch.setattr(llm.settings, "openrouter_api_key", None)
+    monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
+    monkeypatch.setattr(llm.settings, "openai_api_key", None)
+    llm._EXHAUSTED.clear()
+    assert [n for n, _ in llm.get_llm_candidates()] == ["cerebras", "mistral"]
+
+
+def test_resolve_provider_auto_prefers_new_free_providers(monkeypatch):
+    monkeypatch.setattr(llm.settings, "llm_provider", "auto")
+    monkeypatch.setattr(llm.settings, "gemini_api_key", None)
+    monkeypatch.setattr(llm.settings, "groq_api_key", None)
+    monkeypatch.setattr(llm.settings, "cerebras_api_key", "c")
+    monkeypatch.setattr(llm.settings, "mistral_api_key", "m")
+    monkeypatch.setattr(llm.settings, "openrouter_api_key", "o")
+    monkeypatch.setattr(llm.settings, "anthropic_api_key", None)
+    monkeypatch.setattr(llm.settings, "openai_api_key", None)
+    assert llm._resolve_provider() == "cerebras"

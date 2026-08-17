@@ -30,7 +30,9 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------ LLM
     # auto: prefer OpenRouter if a key is set, then Anthropic, then OpenAI.
-    llm_provider: Literal["auto", "openai", "openrouter", "anthropic", "google", "groq"] = "auto"
+    llm_provider: Literal[
+        "auto", "openai", "openrouter", "anthropic", "google", "groq", "cerebras", "mistral"
+    ] = "auto"
     llm_model: str = "gpt-4o"
     llm_temperature: float = 0.0
     openai_api_key: str | None = None
@@ -54,6 +56,16 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
     groq_base_url: str = "https://api.groq.com/openai/v1"
+
+    # Cerebras (OpenAI-compatible; free tier ~1M tokens/day, fast inference).
+    cerebras_api_key: str | None = None
+    cerebras_model: str = "llama-3.3-70b"
+    cerebras_base_url: str = "https://api.cerebras.ai/v1"
+
+    # Mistral (OpenAI-compatible; free tier with rate limits).
+    mistral_api_key: str | None = None
+    mistral_model: str = "mistral-small-latest"
+    mistral_base_url: str = "https://api.mistral.ai/v1"
 
     # --- LLM resilience (free-tier models are often rate-limited) ---
     llm_max_retries: int = 4

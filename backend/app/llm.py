@@ -4,7 +4,7 @@ Centralizes model construction so every agent uses a consistent model,
 temperature, and tracing configuration (spec section 11 + 13).
 
 Supported providers: OpenAI, Anthropic, OpenRouter (OpenAI-compatible,
-including free-tier models), Google Gemini, and Groq.
+including free-tier models), Google Gemini, Groq, Cerebras, and Mistral.
 
 Failover: when one provider's free tier is exhausted (HTTP 429), it is marked
 exhausted and the next provider is tried automatically — so a run keeps its
@@ -52,11 +52,20 @@ def _resolve_provider() -> str:
         return "google"
     if settings.llm_provider == "groq":
         return "groq"
-    # auto: prefer Gemini, then Groq, then OpenRouter, then Anthropic, then OpenAI.
+    if settings.llm_provider == "cerebras":
+        return "cerebras"
+    if settings.llm_provider == "mistral":
+        return "mistral"
+    # auto: free providers first (Gemini → Groq → Cerebras → Mistral → OpenRouter),
+    # then paid (Anthropic → OpenAI).
     if settings.gemini_api_key:
         return "google"
     if settings.groq_api_key:
         return "groq"
+    if settings.cerebras_api_key:
+        return "cerebras"
+    if settings.mistral_api_key:
+        return "mistral"
     if settings.openrouter_api_key:
         return "openrouter"
     if settings.anthropic_api_key:
@@ -125,6 +134,20 @@ def get_llm(model: str | None = None, temperature: float | None = None) -> BaseC
             settings.groq_base_url,
             temperature=temperature,
         )
+    if provider == "cerebras":
+        return _make_openai_compat(
+            model or settings.cerebras_model,
+            settings.cerebras_api_key or "",
+            settings.cerebras_base_url,
+            temperature=temperature,
+        )
+    if provider == "mistral":
+        return _make_openai_compat(
+            model or settings.mistral_model,
+            settings.mistral_api_key or "",
+            settings.mistral_base_url,
+            temperature=temperature,
+        )
     if provider == "openrouter":
         return _make_openai_compat(
             model or settings.openrouter_model,
@@ -169,6 +192,20 @@ def get_llm_candidates() -> list[tuple[str, BaseChatModel]]:
         settings.groq_api_key,
         lambda: _make_openai_compat(
             settings.groq_model, settings.groq_api_key or "", settings.groq_base_url
+        ),
+    )
+    _add(
+        "cerebras",
+        settings.cerebras_api_key,
+        lambda: _make_openai_compat(
+            settings.cerebras_model, settings.cerebras_api_key or "", settings.cerebras_base_url
+        ),
+    )
+    _add(
+        "mistral",
+        settings.mistral_api_key,
+        lambda: _make_openai_compat(
+            settings.mistral_model, settings.mistral_api_key or "", settings.mistral_base_url
         ),
     )
 

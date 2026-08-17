@@ -92,6 +92,8 @@ flowchart LR
     subgraph LLMs["LLM providers (failover)"]
         GEMINI["Gemini"]
         GROQ["Groq"]
+        CEREBRAS["Cerebras"]
+        MISTRAL["Mistral"]
         OPENROUTER["OpenRouter<br/>(multi :free models)"]
     end
     subgraph Data["Data"]
@@ -112,6 +114,8 @@ flowchart LR
     EXEC -->|"browser"| TARGET["Target web app"]
     AGENTS -->|"failover"| GEMINI
     AGENTS -->|"failover"| GROQ
+    AGENTS -->|"failover"| CEREBRAS
+    AGENTS -->|"failover"| MISTRAL
     AGENTS -->|"failover"| OPENROUTER
     GRAPH --> DB
     GRAPH --> VEC
@@ -318,17 +322,21 @@ All settings are env-driven (`.env`, see `.env.example`). The important ones:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `auto` | `auto` / `openai` / `openrouter` / `anthropic` / `google` / `groq` |
+| `LLM_PROVIDER` | `auto` | `auto` / `openai` / `openrouter` / `anthropic` / `google` / `groq` / `cerebras` / `mistral` |
 | `LLM_MODEL` | `gpt-4o` | model used when provider is `openai` |
 | `OPENAI_API_KEY` | — | OpenAI key |
 | `ANTHROPIC_API_KEY` | — | Anthropic key |
 | `OPENROUTER_API_KEY` | — | OpenRouter key (free models available) |
 | `OPENROUTER_MODEL` | `google/gemma-4-26b-a4b-it:free` | primary OpenRouter model |
-| `OPENROUTER_FALLBACK_MODELS` | `qwen/…,meta-llama/…` | extra OpenRouter `:free` models to fail over to |
+| `OPENROUTER_FALLBACK_MODELS` | — | extra OpenRouter `:free` models to fail over to |
 | `GEMINI_API_KEY` | — | Google Gemini key |
 | `GEMINI_MODEL` | `gemini-3.6-flash` | Gemini model |
 | `GROQ_API_KEY` | — | Groq key (fast free llama models) |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
+| `CEREBRAS_API_KEY` | — | Cerebras key (free tier ~1M tok/day) |
+| `CEREBRAS_MODEL` | `llama-3.3-70b` | Cerebras model |
+| `MISTRAL_API_KEY` | — | Mistral key (free tier) |
+| `MISTRAL_MODEL` | `mistral-small-latest` | Mistral model |
 | `LANGSMITH_API_KEY` | — | LangSmith tracing (optional) |
 | `LANGSMITH_TRACING` | `true` | enable tracing |
 | `DATABASE_URL` | Postgres URL | dev tip: `sqlite+aiosqlite:///./e2e.db` |
@@ -358,6 +366,12 @@ GEMINI_API_KEY=***
 # Groq (fast llama models; generous free tier)
 GROQ_API_KEY=***
 
+# Cerebras (free tier ~1M tokens/day)
+CEREBRAS_API_KEY=***
+
+# Mistral (free tier with rate limits)
+MISTRAL_API_KEY=***
+
 # OpenRouter (many free models; ~50 free req/day)
 OPENROUTER_API_KEY=***
 OPENROUTER_MODEL=google/gemma-4-26b-a4b-it:free
@@ -365,8 +379,8 @@ OPENROUTER_FALLBACK_MODELS=
 ```
 
 With `LLM_PROVIDER=auto` (default) the failover order is
-**Gemini → Groq → OpenRouter**. Pin a single provider with
-`LLM_PROVIDER=google|groq|openrouter|openai|anthropic` instead.
+**Gemini → Groq → Cerebras → Mistral → OpenRouter**. Pin a single provider with
+`LLM_PROVIDER=google|groq|cerebras|mistral|openrouter|openai|anthropic` instead.
 
 **Paid:** add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` — paid providers are
 tried last.
