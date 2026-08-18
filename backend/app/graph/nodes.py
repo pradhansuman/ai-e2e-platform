@@ -162,10 +162,17 @@ async def test_intelligence_node(state: TestState) -> TestState:
 # --------------------------------------------------------------------------- #
 async def prioritize_node(state: TestState) -> TestState:
     state["test_cases"] = prioritize_tests(state.get("test_cases", []))
-    # Cap to the configured budget after risk-based ordering (highest priority
-    # first), so a comprehensive AI suite doesn't blow the free-tier LLM budget
-    # on failure analysis / healing.
-    budget = settings.max_tests
+    # Optional priority filter (e.g. P0): keep only tests at that priority.
+    prio = state.get("test_priority")
+    if prio:
+        state["test_cases"] = [
+            t for t in state["test_cases"]
+            if str(t.get("priority") or "").upper() == str(prio).upper()
+        ]
+    # Cap to the configured/requested budget after risk-based ordering (highest
+    # priority first), so a comprehensive AI suite doesn't blow the free-tier
+    # LLM budget on failure analysis / healing.
+    budget = state.get("test_budget") or settings.max_tests
     if budget and len(state["test_cases"]) > budget:
         state["test_cases"] = state["test_cases"][:budget]
     return state

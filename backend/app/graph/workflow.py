@@ -206,6 +206,8 @@ async def run_workflow(
     approval_resume: bool = False,
     initial: dict[str, Any] | None = None,
     run_id: str | None = None,
+    limit: int | None = None,
+    priority: str | None = None,
 ) -> dict[str, Any]:
     """Run the graph to completion and return the final state.
 
@@ -217,5 +219,7 @@ async def run_workflow(
         state: TestState = dict(initial)
         return await graph.ainvoke(state)
 
-    state = initial_state(objective, application, run_id or uuid.uuid4().hex)
+    state = initial_state(
+        objective, application, run_id or uuid.uuid4().hex, limit=limit, priority=priority
+    )
     return await graph.ainvoke(state)

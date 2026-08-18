@@ -89,6 +89,8 @@ class TestState(TypedDict, total=False):
     status: Status
     final_result: dict[str, Any]
     run_id: str
+    test_budget: int
+    test_priority: str
     traces: list[dict[str, Any]]
 
     # -- Evaluation ------------------------------------------------------
@@ -96,7 +98,14 @@ class TestState(TypedDict, total=False):
     evaluations: list[dict[str, Any]]
 
 
-def initial_state(objective: str, application: dict[str, Any], run_id: str) -> TestState:
+def initial_state(
+    objective: str,
+    application: dict[str, Any],
+    run_id: str,
+    *,
+    limit: int | None = None,
+    priority: str | None = None,
+) -> TestState:
     """Factory for a fresh workflow state."""
     return TestState(
         objective=objective,
@@ -128,6 +137,8 @@ def initial_state(objective: str, application: dict[str, Any], run_id: str) -> T
         status="pending",
         final_result={},
         run_id=run_id,
+        test_budget=limit,
+        test_priority=priority,
         traces=[],
         ai_quality={},
         evaluations=[],

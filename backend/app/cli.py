@@ -18,7 +18,12 @@ async def _run(args) -> None:
         "name": args.name or args.url,
         "source": "url",
     }
-    result = await run_workflow(args.objective, application)
+    result = await run_workflow(
+        args.objective,
+        application,
+        limit=args.limit,
+        priority=args.priority,
+    )
     final = result.get("final_result", {})
     print(json.dumps(final, indent=2))
 
