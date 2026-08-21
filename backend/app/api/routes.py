@@ -19,7 +19,7 @@ _APPLICATIONS: dict[str, dict[str, Any]] = {}
 
 
 class RunRequest(BaseModel):
-    objective: str
+    objective: str = Field(..., min_length=1, max_length=4000)
     application: dict[str, Any] = Field(..., description="url, name, source, credentials(ref)")
     requirements: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -30,6 +30,8 @@ class ApprovalRequest(BaseModel):
 
 @api_router.post("/applications")
 async def create_application(payload: dict[str, Any], principal: Principal | None = PrincipalDep):
+    if not can_execute(principal, "create_test_case"):
+        raise HTTPException(status_code=403, detail="Insufficient role")
     app_id = uuid.uuid4().hex
     # Strip secrets before storing/returning.
     _APPLICATIONS[app_id] = redact_for_llm(payload)
@@ -39,7 +41,7 @@ async def create_application(payload: dict[str, Any], principal: Principal | Non
 
 @api_router.get("/applications")
 async def list_applications(principal: Principal | None = PrincipalDep):
-    return list(_APPLICATIONS.values())
+    return [{"id": app_id, **value} for app_id, value in _APPLICATIONS.items()]
 
 
 @api_router.post("/runs")
@@ -56,13 +58,14 @@ async def create_run(req: RunRequest, principal: Principal | None = PrincipalDep
     except Exception:  # noqa: BLE001 - degrade to in-memory only
         pass
 
+    safe_application = redact_for_llm(req.application)
     run_store.put(
         run_id,
         {
             "run_id": run_id,
             "status": "queued",
             "objective": req.objective,
-            "application": req.application,
+            "application": safe_application,
             "requirements": req.requirements,
         },
     )
@@ -70,7 +73,7 @@ async def create_run(req: RunRequest, principal: Principal | None = PrincipalDep
     from ..services import worker
 
     async def _job() -> dict[str, Any]:
-        result = await run_workflow(req.objective, req.application, run_id=run_id)
+        result = await run_workflow(req.objective, safe_application, run_id=run_id)
         result["application"]["requirements"] = req.requirements
         run_store.put(run_id, result)
         return result
@@ -98,9 +101,13 @@ async def get_run(run_id: str, principal: Principal | None = PrincipalDep):
 
 @api_router.post("/runs/{run_id}/approve")
 async def approve_run(run_id: str, req: ApprovalRequest, principal: Principal | None = PrincipalDep):
+    if not can_execute(principal, "apply_self_healing"):
+        raise HTTPException(status_code=403, detail="Insufficient role")
     state = run_store.get(run_id)
     if state is None:
         raise HTTPException(status_code=404, detail="Run not found")
+    if state.get("status") != "awaiting_approval":
+        raise HTTPException(status_code=409, detail="Run is not awaiting approval")
     state["approval_decision"] = req.decision
     result = await run_workflow(
         state.get("objective", ""),
@@ -150,5 +157,5 @@ async def dashboard_summary(principal: Principal | None = PrincipalDep):
         "tests": {"total": tests, "passed": passed, "failed": failed, "flaky": flaky},
         "ai": {"healing_events": healing},
         "execution": {"pass_rate": round(passed / tests, 4) if tests else 0.0},
-        "runs": len(_RUNS),
+        "runs": len(run_store.values()),
     }

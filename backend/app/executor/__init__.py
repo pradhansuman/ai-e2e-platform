@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from urllib.parse import urljoin, urlsplit
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,21 @@ class PlaywrightExecutor:
         self.headless = settings.browser_headless if headless is None else headless
         self.timeout = settings.browser_timeout_ms
 
+    def _browser_launcher(self, playwright):
+        return getattr(playwright, settings.browser_type)
+
+    def _validate_navigation(self, target: str, app_url: str) -> str:
+        resolved = urljoin(app_url, target)
+        base = urlsplit(app_url)
+        dest = urlsplit(resolved)
+        if (dest.scheme, dest.netloc) != (base.scheme, base.netloc):
+            raise ValueError("navigation target must stay on the application origin")
+        return resolved
+
+    @staticmethod
+    def _artifact_name(value: str) -> str:
+        return "".join(c if c.isalnum() or c in "-_." else "_" for c in value)[:160] or "artifact"
+
     # ------------------------------------------------------------------ #
     # Public API
     # ------------------------------------------------------------------ #
@@ -34,7 +50,7 @@ class PlaywrightExecutor:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
+            browser = await self._browser_launcher(p).launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
             page = await browser.new_page()
             await page.goto(url, timeout=self.timeout, wait_until="domcontentloaded")
 
@@ -95,7 +111,7 @@ class PlaywrightExecutor:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
+            browser = await self._browser_launcher(p).launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
             page = await browser.new_page()
             await page.goto(url, timeout=self.timeout, wait_until="domcontentloaded")
             if selector:
@@ -109,7 +125,7 @@ class PlaywrightExecutor:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
+            browser = await self._browser_launcher(p).launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
             page = await browser.new_page()
             events: list[dict[str, Any]] = []
             page.on("response", lambda r: events.append(_response_event(r)))
@@ -123,7 +139,7 @@ class PlaywrightExecutor:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
+            browser = await self._browser_launcher(p).launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
             page = await browser.new_page()
             await page.goto(url, timeout=self.timeout)
             await page.screenshot(path=str(path), full_page=full_page)
@@ -140,11 +156,13 @@ class PlaywrightExecutor:
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
+            browser = await self._browser_launcher(p).launch(headless=self.headless, slow_mo=settings.browser_slow_mo)
             context = await browser.new_context(
                 viewport={"width": 1366, "height": 900}
             )
             page = await context.new_page()
+            page.set_default_timeout(self.timeout)
+            page.set_default_navigation_timeout(self.timeout)
 
             console: list[dict[str, Any]] = []
             network: list[dict[str, Any]] = []
@@ -161,8 +179,11 @@ class PlaywrightExecutor:
 
                 t0 = time.time()
                 try:
+                    if action == "goto":
+                        target = step.get("target") or step.get("value") or step.get("url")
+                        step = {**step, "target": self._validate_navigation(str(target), app_url)}
                     await ACTIONS[action](page, step)
-                    screenshot = await _screenshot(page, f"{test_case.get('test_id','t')}_s{i}")
+                    screenshot = await _try_screenshot(page, f"{self._artifact_name(str(test_case.get('test_id','t')))}_s{i}")
                     step_results.append({
                         "step_index": i,
                         "action": action,
@@ -173,7 +194,7 @@ class PlaywrightExecutor:
                         "screenshot": screenshot,
                     })
                 except Exception as exc:  # noqa: BLE001 - must capture any step failure
-                    screenshot = await _screenshot(page, f"{test_case.get('test_id','t')}_s{i}_fail", full_page=True)
+                    screenshot = await _try_screenshot(page, f"{self._artifact_name(str(test_case.get('test_id','t')))}_s{i}_fail", full_page=True)
                     step_results.append({
                         "step_index": i,
                         "action": action,
@@ -215,3 +236,11 @@ async def _screenshot(page, name: str, full_page: bool = False) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     await page.screenshot(path=str(path), full_page=full_page)
     return str(path)
+
+
+async def _try_screenshot(page, name: str, full_page: bool = False) -> str | None:
+    """Evidence capture must not hide the original browser failure."""
+    try:
+        return await _screenshot(page, name, full_page=full_page)
+    except Exception:
+        return None

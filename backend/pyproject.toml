@@ -9,6 +9,7 @@ description = "AI-powered end-to-end test automation platform (LangChain + LangG
 requires-python = ">=3.11"
 dependencies = [
     "langchain>=0.3.0",
+    "langchain-community>=0.3.0",
     "langgraph>=0.2.60",
     "langchain-openai>=0.2.0",
     "langsmith>=0.1.140",
@@ -16,9 +17,13 @@ dependencies = [
     "uvicorn[standard]>=0.30.0",
     "sqlalchemy[asyncio]>=2.0.30",
     "asyncpg>=0.29.0",
+    "aiosqlite>=0.20.0",
+    "alembic>=1.13.0",
     "qdrant-client>=1.10.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.4.0",
+    "python-dotenv>=1.0.1",
+    "PyJWT>=2.8.0",
     "playwright==1.61.0",
 ]
 

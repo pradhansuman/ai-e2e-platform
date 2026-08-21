@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root (ai-e2e-platform/), so .env is found regardless of the CWD the
@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     app_name: str = "ai-e2e-platform"
     environment: Literal["dev", "test", "staging", "prod"] = "dev"
     api_prefix: str = "/api/v1"
+    cors_origins: str = "http://localhost:8000,http://localhost:3000"
 
     # ------------------------------------------------------------------ LLM
     # auto: prefer OpenRouter if a key is set, then Anthropic, then OpenAI.
@@ -122,6 +123,19 @@ class Settings(BaseSettings):
         "credit_card",
         "ssn",
     )
+
+    @model_validator(mode="after")
+    def validate_deployment_security(self) -> "Settings":
+        if self.environment in {"staging", "prod"}:
+            if self.allow_unauthenticated:
+                raise ValueError("ALLOW_UNAUTHENTICATED must be false outside development")
+            if self.secret_key == "dev-only-insecure-secret-0000000000000000" or len(self.secret_key) < 32:
+                raise ValueError("SECRET_KEY must be a unique value of at least 32 characters")
+            if not self.cors_origins.strip():
+                raise ValueError("CORS_ORIGINS must contain at least one trusted origin")
+            if "*" in {origin.strip() for origin in self.cors_origins.split(",")}:
+                raise ValueError("CORS_ORIGINS cannot contain * when credentials are enabled")
+        return self
 
 
 @lru_cache

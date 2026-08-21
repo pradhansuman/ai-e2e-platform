@@ -367,6 +367,12 @@ async def repair_node(state: TestState) -> TestState:
         if settings.human_approval_required and state.get("approval_decision") != "approved":
             state["approval_required"] = True
             state["status"] = "awaiting_approval"
+            try:
+                from ..services.persistence import persist_run
+
+                await persist_run(state)
+            except Exception as exc:  # noqa: BLE001 - DB may be unavailable
+                logger.debug("Skipping approval-state persistence (%s)", exc)
     return state
 
 
@@ -427,13 +433,6 @@ async def validate_node(state: TestState) -> TestState:
 # REPORT
 # --------------------------------------------------------------------------- #
 async def report_node(state: TestState) -> TestState:
-    # Persist results (best-effort; degrades to in-memory when no DB).
-    try:
-        from ..services.persistence import persist_run
-
-        await persist_run(state)
-    except Exception as exc:  # noqa: BLE001 - DB may be unavailable
-        logger.debug("Skipping persistence (%s)", exc)
     state["final_result"] = state.get("final_result") or {
         "run_id": state.get("run_id"),
         "status": state.get("status", "unknown"),
@@ -445,6 +444,12 @@ async def report_node(state: TestState) -> TestState:
         "root_cause": state.get("root_cause", {}),
         "healing_events": state.get("healing_events", []),
     }
+    try:
+        from ..services.persistence import persist_run
+
+        await persist_run(state)
+    except Exception as exc:  # noqa: BLE001 - DB may be unavailable
+        logger.debug("Skipping persistence (%s)", exc)
     return state
 
 
@@ -536,4 +541,3 @@ def _langsmith_eval(state: TestState) -> None:
         )
     except Exception as exc:  # noqa: BLE001
         logger.debug("LangSmith eval push skipped (%s)", exc)
-

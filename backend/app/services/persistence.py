@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import delete, select
 
 from .. import db
-from ..models.orm import Application, Failure, HealingEvent, TestResult, TestRun
+from ..models.orm import ApiEndpoint, Application, Failure, HealingEvent, Page, TestResult, TestRun
 
 
 def _now() -> datetime:
@@ -170,9 +170,12 @@ async def dashboard_summary() -> dict[str, Any]:
     """Aggregate metrics from the database (spec section 15)."""
     async with db.SessionFactory() as session:
         apps = len((await session.execute(select(Application.id))).scalars().all())
+        pages = len((await session.execute(select(Page.id))).scalars().all())
+        apis = len((await session.execute(select(ApiEndpoint.id))).scalars().all())
         runs = len((await session.execute(select(TestRun.id))).scalars().all())
         results = (await session.execute(select(TestResult))).scalars().all()
         healing = len((await session.execute(select(HealingEvent.id))).scalars().all())
+        failures = len((await session.execute(select(Failure.id))).scalars().all())
 
         passed = sum(1 for r in results if r.status == "passed")
         failed = sum(1 for r in results if r.status == "failed")
@@ -181,9 +184,15 @@ async def dashboard_summary() -> dict[str, Any]:
 
         return {
             "applications": apps,
+            "pages": pages,
+            "apis": apis,
             "tests": {"total": total, "passed": passed, "failed": failed, "flaky": flaky},
             "ai": {"healing_events": healing},
-            "execution": {"pass_rate": round(passed / total, 4) if total else 0.0},
+            "execution": {
+                "pass_rate": round(passed / total, 4) if total else 0.0,
+                "avg_duration_ms": round(sum(r.duration_ms or 0 for r in results) / total) if total else 0,
+            },
+            "failures": failures,
             "runs": runs,
         }
 

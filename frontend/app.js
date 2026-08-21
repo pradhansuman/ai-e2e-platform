@@ -90,7 +90,9 @@ function escapeHtml(s) {
 async function load() {
   els.refresh.disabled = true;
   try {
-    const res = await fetch(`${API_BASE}/dashboard/summary`);
+    const token = localStorage.getItem("api_token");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const res = await fetch(`${API_BASE}/dashboard/summary`, { headers });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     els.envBadge.textContent = "online";
